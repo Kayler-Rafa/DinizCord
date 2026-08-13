@@ -26,3 +26,6 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Metadados do CLI da Vercel (id do projeto, tokens locais).
+.vercel
