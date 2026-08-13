@@ -19,6 +19,26 @@ const OWNER_USERNAME = process.env.SEED_OWNER_USERNAME ?? 'rafael';
 const OWNER_NAME = process.env.SEED_OWNER_NAME ?? 'Rafael';
 const OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD ?? 'dinizcord2026';
 
+/**
+ * A senha padrão só serve para desenvolvimento local.
+ *
+ * Este repositório é público: qualquer pessoa lê o valor acima. Semear uma
+ * instância exposta na internet com ele entregaria a conta do dono a quem
+ * descobrisse a URL. Por isso, em produção a senha tem de ser informada.
+ */
+if (process.env.NODE_ENV === 'production' && !process.env.SEED_OWNER_PASSWORD) {
+  console.error('');
+  console.error('  Recusando semear em produção com a senha padrão.');
+  console.error('  A senha padrão está no código-fonte e é pública.');
+  console.error('');
+  console.error('  Rode novamente definindo as credenciais do dono:');
+  console.error('    SEED_OWNER_EMAIL="voce@exemplo.com" \\');
+  console.error('    SEED_OWNER_PASSWORD="uma-senha-com-10-ou-mais" \\');
+  console.error('    npm run db:seed');
+  console.error('');
+  process.exit(1);
+}
+
 const SERVER_NAME = 'Amigos';
 
 const CHANNELS = [
