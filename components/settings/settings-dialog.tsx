@@ -152,18 +152,45 @@ function VoiceSettings() {
           {peers.length === 0 ? (
             <p className="text-muted">Você é a única pessoa na sala.</p>
           ) : (
-            <ul className="space-y-1 text-muted">
+            /*
+             * Diagnóstico por participante.
+             *
+             * Numa chamada P2P, "não estou ouvindo/vendo" pode ser cinco coisas
+             * diferentes. Mostrar se a conexão fechou e quais mídias chegaram
+             * separa o problema em um olhar: sem conexão é rede (provável falta
+             * de TURN); conectado e sem tela é signaling.
+             */
+            <ul className="space-y-2">
               {peers.map((peer) => (
-                <li key={peer.peerId} className="flex items-center justify-between gap-2">
-                  <span className="truncate font-mono text-xs">{peer.peerId.slice(0, 8)}</span>
-                  <span
-                    className={cn(
-                      'text-xs',
-                      peer.connectionState === 'connected' ? 'text-success' : 'text-warning',
-                    )}
-                  >
-                    {translateConnectionState(peer.connectionState)}
-                  </span>
+                <li
+                  key={peer.peerId}
+                  className="rounded-[var(--radius-app)] border border-line bg-elevated px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-mono text-xs text-muted">
+                      {peer.peerId.slice(0, 8)}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-xs font-medium',
+                        peer.connectionState === 'connected' ? 'text-success' : 'text-warning',
+                      )}
+                    >
+                      {translateConnectionState(peer.connectionState)}
+                    </span>
+                  </div>
+
+                  <div className="mt-1.5 flex gap-3 text-[11px]">
+                    <span className={peer.audio ? 'text-success' : 'text-subtle'}>
+                      {peer.audio ? '✓' : '—'} áudio
+                    </span>
+                    <span className={peer.screen ? 'text-success' : 'text-subtle'}>
+                      {peer.screen ? '✓' : '—'} tela
+                      {peer.screen
+                        ? ` (${peer.screen.getVideoTracks().length} faixa${peer.screen.getVideoTracks().length === 1 ? '' : 's'})`
+                        : ''}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>

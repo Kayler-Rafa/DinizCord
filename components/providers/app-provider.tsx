@@ -72,10 +72,20 @@ export function AppProvider({
     }
 
     if (event.t === 'error') {
-      // Só reporta o que o usuário pode entender; ruído de protocolo fica no console.
-      if (event.code === 'RATE_LIMITED' || event.code === 'FORBIDDEN') {
-        toast({ title: 'Ação recusada', description: event.message, variant: 'error' });
-      }
+      // Todo erro do gateway vira aviso na tela.
+      //
+      // Antes, INVALID_PAYLOAD e INTERNAL eram descartados em silêncio — e é
+      // justamente por eles que o signaling do WebRTC falha. O resultado era o
+      // pior caso possível: a tela do outro simplesmente não aparecia, sem
+      // nenhuma pista do motivo, nem para o usuário nem para quem fosse
+      // investigar depois.
+      console.error('[dinizcord] gateway recusou:', event.code, event.message);
+
+      toast({
+        title: event.code === 'RATE_LIMITED' ? 'Muitas ações seguidas' : 'Algo falhou na conexão',
+        description: event.message,
+        variant: 'error',
+      });
       return;
     }
 
