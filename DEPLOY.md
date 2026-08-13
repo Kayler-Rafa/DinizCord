@@ -55,8 +55,37 @@ postgresql://usuario:senha@ep-algo-123.sa-east-1.aws.neon.tech/neondb?sslmode=re
 
 Guarde como `SUA_DATABASE_URL`.
 
-> O Neon oferece duas URLs: uma "pooled" e uma "direct". Use a **pooled** (a
-> padrão) — é a certa para serverless.
+### ⚠️ Você precisa das DUAS URLs do Neon
+
+Esta é a pegadinha que mais quebra o projeto, e ela **falha em silêncio**.
+
+O Neon oferece dois endereços para o mesmo banco. Eles diferem só pelo sufixo
+`-pooler` no host:
+
+```
+pooled:  ...@ep-algo-123-pooler.sa-east-1.aws.neon.tech/neondb?...
+direta:  ...@ep-algo-123.sa-east-1.aws.neon.tech/neondb?...
+```
+
+| Serviço | Qual usar | Por quê |
+| --- | --- | --- |
+| **Vercel** (site) | **pooled** | Serverless abre muitas conexões curtas; sem pooler o banco esgota. |
+| **Railway** (gateway) | **direta** | O tempo real depende de `LISTEN/NOTIFY`, e o pooler não entrega notificações. |
+
+O pooler roda em modo *transaction*: ele **aceita** o comando `LISTEN` sem dar
+erro e simplesmente nunca entrega nada. O resultado é um chat que carrega o
+histórico normalmente e nunca recebe mensagem nova em tempo real — sem nenhum
+erro no log para indicar o motivo.
+
+Para conferir qualquer URL antes de usar:
+
+```bash
+DATABASE_URL="a-url-que-quer-testar" npm run check:realtime
+```
+
+O gateway também faz esse teste sozinho ao subir. Se você vir
+`BARRAMENTO REALTIME INOPERANTE` nos logs do Railway, é isto: troque para a URL
+direta.
 
 ### Criar as tabelas e o servidor inicial
 
@@ -115,11 +144,14 @@ gateway no momento do build.
 4. Aba **Variables**, adicione:
 
 ```
-DATABASE_URL   = SUA_DATABASE_URL
+DATABASE_URL   = a URL DIRETA do Neon (sem "-pooler" no host)
 AUTH_SECRET    = SEU_AUTH_SECRET
 WS_PORT        = 3001
 WS_ALLOWED_ORIGINS = https://dinizcord.vercel.app
 ```
+
+> Repare: aqui vai a URL **direta**, diferente da que a Vercel usa. Ver o aviso
+> no passo 1.
 
 > `WS_ALLOWED_ORIGINS` é o endereço do **site**, não do gateway. Você ainda não
 > o tem — coloque um valor provisório agora e volte para corrigir no passo 4.
@@ -151,7 +183,7 @@ Chamaremos de `SUA_WS_URL`.
 4. Abra **Environment Variables** e adicione **todas** antes de fazer o deploy:
 
 ```
-DATABASE_URL            = SUA_DATABASE_URL
+DATABASE_URL            = a URL POOLED do Neon (com "-pooler" no host)
 AUTH_SECRET             = SEU_AUTH_SECRET
 NEXT_PUBLIC_APP_URL     = https://dinizcord.vercel.app
 NEXT_PUBLIC_WS_URL      = SUA_WS_URL

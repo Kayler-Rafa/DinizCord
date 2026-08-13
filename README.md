@@ -184,7 +184,7 @@ Cole o valor em `AUTH_SECRET` no `.env`.
 
 | Variável | Obrigatória | Descrição |
 | --- | --- | --- |
-| `DATABASE_URL` | sim | Connection string do PostgreSQL. |
+| `DATABASE_URL` | sim | Connection string do PostgreSQL. **O gateway precisa de uma conexão direta, sem pooler** — ver aviso abaixo. |
 | `AUTH_SECRET` | sim | Mínimo 32 caracteres. Assina os tickets do WebSocket e deriva os hashes de sessão. |
 | `NEXT_PUBLIC_APP_URL` | sim | URL pública da aplicação. Usada nos links de convite e na checagem de origem. |
 | `NEXT_PUBLIC_WS_URL` | sim | URL do gateway (`ws://` em dev, `wss://` em produção). |
@@ -199,6 +199,23 @@ Cole o valor em `AUTH_SECRET` no `.env`.
 O arquivo é validado com Zod na inicialização (`lib/env.server.ts`): um
 `AUTH_SECRET` curto derruba o processo com mensagem clara, em vez de gerar
 sessões forjáveis em silêncio.
+
+### Poolers e o barramento realtime
+
+Provedores serverless (Neon, Supabase) oferecem um endpoint "pooled" que roda
+PgBouncer em modo *transaction*. Esse modo **aceita o comando `LISTEN` e nunca
+entrega notificação nenhuma** — sem erro, sem aviso.
+
+Consequência: a aplicação Next pode (e deve) usar a URL com pooler, mas o
+**gateway precisa da conexão direta**. Se ele rodar através do pooler, o chat
+carrega o histórico e nunca recebe nada em tempo real.
+
+O gateway detecta isso sozinho ao subir e registra `BARRAMENTO REALTIME
+INOPERANTE` no log. Para conferir uma URL antes de usá-la:
+
+```bash
+DATABASE_URL="..." npm run check:realtime
+```
 
 ---
 

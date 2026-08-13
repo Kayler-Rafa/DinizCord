@@ -27,6 +27,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:embedded": "tsx scripts/embedded-postgres.ts",
+    "check:realtime": "tsx scripts/check-realtime.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

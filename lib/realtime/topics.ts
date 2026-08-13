@@ -32,5 +32,13 @@ export function parseTopic(topic: string): { scope: TopicScope; id: string } | n
 /** Canal do PostgreSQL usado no LISTEN/NOTIFY. */
 export const PG_NOTIFY_CHANNEL = 'dinizcord_events';
 
+/**
+ * Canal usado só para o autoteste de inicialização do gateway.
+ *
+ * Separado do canal real para que a mensagem de teste não seja confundida com
+ * o id de um evento do outbox.
+ */
+export const PG_SELFTEST_CHANNEL = 'dinizcord_selftest';
+
 /** Eventos mais antigos que isto são descartados pelo sweeper. */
 export const EVENT_RETENTION_MS = 5 * 60 * 1000;
