@@ -466,6 +466,42 @@ describe('signaling WebRTC', () => {
     expect(candidate.signal.kind).toBe('candidate');
   });
 
+  it('entrega a oferta enviada imediatamente após o voice:join', async () => {
+    // Reproduz a condição de corrida que quebrava toda chamada: o cliente envia
+    // `voice:join` e, no mesmo instante, a oferta WebRTC. Se o gateway tratar as
+    // duas mensagens em paralelo, a oferta chega antes de o join concluir, é
+    // recusada como FORBIDDEN e some — e como a oferta só é emitida uma vez, a
+    // conexão nunca sai do estado inicial (sem áudio e sem tela).
+    const owner = await createUser();
+    const friend = await createUser();
+    const server = await createServerWithChannels(owner.id);
+    await addMember(server.id, friend.id);
+
+    const ownerClient = await connect(owner.id);
+    const ownerReady = await ownerClient.waitFor('ready');
+    ownerClient.send({ t: 'voice:join', channelId: server.voiceChannelId });
+    await ownerClient.waitFor('voice:join');
+
+    const friendClient = await connect(friend.id);
+    await friendClient.waitFor('ready');
+
+    // Sem qualquer espera entre as duas mensagens — é assim que o cliente real
+    // se comporta ao entrar numa sala que já tem gente.
+    friendClient.send({ t: 'voice:join', channelId: server.voiceChannelId });
+    friendClient.send({
+      t: 'webrtc:signal',
+      to: ownerReady.sessionId,
+      signal: { kind: 'description', description: { type: 'offer', sdp: 'v=0\r\noferta-inicial' } },
+    });
+
+    const entregue = await ownerClient.waitFor('webrtc:signal');
+    expect(entregue.fromUserId).toBe(friend.id);
+    expect(entregue.signal.kind).toBe('description');
+
+    // E nenhum erro deve ter sido devolvido a quem entrou.
+    expect(friendClient.received.filter((event) => event.t === 'error')).toHaveLength(0);
+  });
+
   it('recusa signaling para quem está em outro canal de voz', async () => {
     const owner = await createUser();
     const friend = await createUser();

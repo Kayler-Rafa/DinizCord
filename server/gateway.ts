@@ -157,7 +157,9 @@ export class Gateway {
     this.registry.add(connection);
 
     socket.on('message', (raw, isBinary) => {
-      void this.onMessage(connection, raw, isBinary);
+      // Serializado: mensagens da mesma conexão dependem da ordem em que foram
+      // enviadas (ver `Connection.enqueue`).
+      connection.enqueue(() => this.onMessage(connection, raw, isBinary));
     });
     socket.on('close', () => void this.onClose(connection));
     socket.on('error', (error) => {

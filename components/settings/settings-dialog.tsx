@@ -15,6 +15,8 @@ import { ProfileSettings } from './profile-settings';
 import { PasswordSettings } from './password-settings';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { useTheme } from '@/hooks/useTheme';
+import { useVoice } from '@/components/providers/voice-provider';
+import { useStoreSelector } from '@/hooks/useStore';
 
 export function SettingsDialog({
   open,
@@ -122,6 +124,17 @@ function AppearanceSettings() {
  */
 function VoiceSettings() {
   const { turnMissing, inCall, peers } = useWebRTC();
+  const { channelId, sharingScreen } = useVoice();
+
+  // Quem o SERVIDOR diz que está transmitindo, que é independente da mídia ter
+  // chegado ou não. Comparar as duas coisas é o que separa os diagnósticos:
+  // sinalizado mas sem faixa de vídeo = problema de mídia/renegociação;
+  // nem sinalizado = a captura de tela do outro lado nunca começou.
+  const transmitindoSegundoServidor = useStoreSelector((state) =>
+    Object.values(state.voice).filter(
+      (participante) => participante.channelId === channelId && participante.screenSharing,
+    ).length,
+  );
 
   return (
     <div className="space-y-4 text-sm">
@@ -148,7 +161,20 @@ function VoiceSettings() {
 
       {inCall ? (
         <div>
+          <h3 className="mb-1 font-medium text-content">Compartilhamento de tela</h3>
+          <ul className="mb-4 space-y-0.5 text-muted">
+            <li>Você está transmitindo: {sharingScreen ? 'sim' : 'não'}</li>
+            <li>Transmitindo nesta sala (segundo o servidor): {transmitindoSegundoServidor}</li>
+            <li>
+              Transmissões recebidas de fato: {peers.filter((peer) => peer.screen).length}
+            </li>
+          </ul>
+
           <h3 className="mb-1 font-medium text-content">Conexões ativas</h3>
+          <p className="mb-2 text-xs text-subtle">
+            O estado muda sozinho ao longo da chamada. &ldquo;Iniciando&rdquo; logo depois de
+            entrar é normal; o que importa é o valor depois de alguns segundos.
+          </p>
           {peers.length === 0 ? (
             <p className="text-muted">Você é a única pessoa na sala.</p>
           ) : (

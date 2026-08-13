@@ -22,6 +22,9 @@ export class Connection {
   private closed = false;
   private readonly eventTimestamps: number[] = [];
 
+  /** Fim da fila de processamento desta conexão. Ver `enqueue`. */
+  private tail: Promise<void> = Promise.resolve();
+
   constructor(
     readonly id: string,
     readonly userId: string,
@@ -50,6 +53,22 @@ export class Connection {
   terminate(): void {
     this.closed = true;
     this.socket.terminate();
+  }
+
+  /**
+   * Processa uma mensagem depois que a anterior desta conexão terminar.
+   *
+   * As mensagens de um mesmo cliente têm ordem semântica: `voice:join` precisa
+   * concluir antes que um `webrtc:signal` seja avaliado, porque é ele que marca
+   * a conexão como "em chamada". Tratando-as em paralelo, a oferta inicial
+   * chegava enquanto o join ainda estava gravando no banco, era recusada como
+   * FORBIDDEN e **descartada** — e como a oferta só é emitida uma vez, a chamada
+   * ficava presa em `new`, sem áudio nem vídeo.
+   *
+   * A fila é por conexão: um cliente lento não atrasa os outros.
+   */
+  enqueue(task: () => Promise<void>): void {
+    this.tail = this.tail.then(task).catch(() => undefined);
   }
 
   /**
