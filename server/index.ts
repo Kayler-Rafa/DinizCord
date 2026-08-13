@@ -12,6 +12,23 @@ import { CLOSE_CODES, MAX_INBOUND_MESSAGE_BYTES } from '../lib/websocket/protoco
 const log = scopedLogger('gateway');
 
 /**
+ * Commit que originou este build.
+ *
+ * O Railway injeta `RAILWAY_GIT_COMMIT_SHA`; outras plataformas usam nomes
+ * diferentes, daí a lista. Fora de um deploy (rodando local) não há commit
+ * algum, e "dev" é a resposta honesta.
+ */
+function buildCommit(): string {
+  const sha =
+    process.env.RAILWAY_GIT_COMMIT_SHA ??
+    process.env.GIT_COMMIT_SHA ??
+    process.env.SOURCE_COMMIT ??
+    '';
+
+  return sha ? sha.slice(0, 7) : 'dev';
+}
+
+/**
  * Entrypoint do gateway WebSocket.
  *
  * Processo SEPARADO da aplicação Next, de propósito: funções serverless não
@@ -27,7 +44,17 @@ async function main() {
     // Health check para o orquestrador saber se o processo está vivo.
     if (request.url === '/health') {
       response.writeHead(200, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ status: 'ok', connections: gateway.connectionCount }));
+      response.end(
+        JSON.stringify({
+          status: 'ok',
+          connections: gateway.connectionCount,
+          // Identifica qual build está no ar. Sem isso, a única forma de saber
+          // se um deploy realmente pegou é inferir pelo horário — e depois de
+          // um rollback ou de um build que falhou pela metade, isso engana.
+          commit: buildCommit(),
+          uptimeSeconds: Math.round(process.uptime()),
+        }),
+      );
       return;
     }
 
