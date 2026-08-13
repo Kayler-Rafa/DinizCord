@@ -157,7 +157,19 @@ WS_ALLOWED_ORIGINS = https://dinizcord.vercel.app
 > o tem — coloque um valor provisório agora e volte para corrigir no passo 4.
 > Sem isso certo, o navegador é recusado no handshake.
 
-5. Aguarde o deploy. Teste no navegador:
+5. **Escolha a região.** O Railway não tem região na América do Sul e costuma
+   provisionar em Amsterdã — o pior caso aqui, porque cada consulta do gateway
+   ao banco (em `sa-east-1`) atravessaria o Atlântico. Use `us-east`, a mais
+   próxima do Brasil:
+
+```bash
+railway service scale --service gateway us-east=1 ams=0
+```
+
+> `ams` e `eu-west` são regiões **distintas** no Railway: zerar só `eu-west`
+> não remove uma réplica que esteja em `ams`. Confira com `railway status`.
+
+6. Aguarde o deploy. Teste no navegador:
 
 ```
 https://SEU-GATEWAY.up.railway.app/health
@@ -165,7 +177,7 @@ https://SEU-GATEWAY.up.railway.app/health
 
 Deve responder `{"status":"ok","connections":0}`.
 
-Guarde o endereço trocando `https` por `wss`:
+7. Guarde o endereço trocando `https` por `wss`:
 
 ```
 wss://SEU-GATEWAY.up.railway.app
