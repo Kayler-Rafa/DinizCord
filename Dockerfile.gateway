@@ -1,0 +1,46 @@
+# Imagem do gateway WebSocket.
+#
+# Processo separado da aplicação Next porque plataformas serverless não mantêm
+# conexões de longa duração (ver README > "WebSockets e Vercel"). Esta imagem é
+# o que vai para Railway, Fly.io, Render ou uma VPS.
+
+FROM node:22-alpine AS deps
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+
+FROM node:22-alpine AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+RUN npx prisma generate
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 gateway
+
+COPY --from=deps --chown=gateway:nodejs /app/node_modules ./node_modules
+COPY --chown=gateway:nodejs package.json ./
+COPY --chown=gateway:nodejs server ./server
+COPY --chown=gateway:nodejs lib ./lib
+COPY --chown=gateway:nodejs prisma ./prisma
+# O client gerado tem de vir do estágio de build, depois de `prisma generate`.
+COPY --from=builder --chown=gateway:nodejs /app/lib/db/generated ./lib/db/generated
+
+USER gateway
+
+EXPOSE 3001
+
+# `/health` responde com o número de conexões abertas — use como healthcheck do
+# orquestrador.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.WS_PORT||3001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["npx", "tsx", "server/index.ts"]

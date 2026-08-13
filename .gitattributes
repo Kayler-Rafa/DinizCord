@@ -1,0 +1,14 @@
+# Normaliza as quebras de linha: LF no repositório, nativo no disco de cada um.
+# Sem isso, um commit feito no Windows aparece como "arquivo inteiro alterado"
+# para quem estiver no Linux ou macOS.
+* text=auto eol=lf
+
+# Binários não devem sofrer conversão.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary

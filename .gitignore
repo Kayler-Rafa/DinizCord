@@ -1,0 +1,28 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+.pgdata/
+*.tsbuildinfo
+next-env.d.ts
+
+# Client do Prisma: é gerado por `prisma generate` (roda no postinstall e no
+# build). Versionar geraria conflitos a cada mudança de schema e inflaria o repo.
+lib/db/generated/
+
+# Preferências de máquina, não do projeto.
+.claude/settings.local.json
+
+.env
+.env.local
+.env*.local
+!.env.example
+
+npm-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

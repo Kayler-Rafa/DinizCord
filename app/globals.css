@@ -1,0 +1,244 @@
+@import 'tailwindcss';
+
+/*
+ * DinizCord — design tokens.
+ *
+ * Identidade própria: base grafite-azulada fria com acento violeta. Os tokens
+ * ficam em variáveis CSS (`--dc-*`) e são expostos ao Tailwind via `@theme
+ * inline`, o que permite trocar o tema em runtime sem recompilar.
+ *
+ * Tema escuro é o padrão; o claro só entra com `data-theme="light"` explícito.
+ */
+
+:root,
+:root[data-theme='dark'] {
+  --dc-base: #0a0c11;
+  --dc-surface: #10131b;
+  --dc-elevated: #171b26;
+  --dc-overlay: #1d2231;
+  --dc-border: #242a3a;
+  --dc-border-strong: #333b50;
+
+  --dc-text: #e8eaf0;
+  --dc-text-muted: #98a1b8;
+  --dc-text-subtle: #69718a;
+
+  --dc-accent: #7c5cff;
+  --dc-accent-hover: #8f74ff;
+  --dc-accent-soft: #7c5cff26;
+  --dc-on-accent: #ffffff;
+
+  --dc-success: #3ecf8e;
+  --dc-warning: #f5a623;
+  --dc-danger: #f2545b;
+  --dc-danger-soft: #f2545b1f;
+
+  --dc-speaking: #3ecf8e;
+
+  --dc-scrollbar: #2b3245;
+  --dc-scrollbar-hover: #3b4359;
+}
+
+:root[data-theme='light'] {
+  --dc-base: #f5f6fa;
+  --dc-surface: #ffffff;
+  --dc-elevated: #ffffff;
+  --dc-overlay: #ffffff;
+  --dc-border: #e2e5ee;
+  --dc-border-strong: #cdd2e0;
+
+  --dc-text: #12151d;
+  --dc-text-muted: #59617a;
+  --dc-text-subtle: #838ba3;
+
+  --dc-accent: #6544e8;
+  --dc-accent-hover: #563ac9;
+  --dc-accent-soft: #6544e814;
+  --dc-on-accent: #ffffff;
+
+  --dc-success: #14966a;
+  --dc-warning: #b97309;
+  --dc-danger: #d13c43;
+  --dc-danger-soft: #d13c4314;
+
+  --dc-speaking: #14966a;
+
+  --dc-scrollbar: #c9cedd;
+  --dc-scrollbar-hover: #aab1c6;
+}
+
+@theme inline {
+  --color-base: var(--dc-base);
+  --color-surface: var(--dc-surface);
+  --color-elevated: var(--dc-elevated);
+  --color-overlay: var(--dc-overlay);
+  --color-line: var(--dc-border);
+  --color-line-strong: var(--dc-border-strong);
+
+  --color-content: var(--dc-text);
+  --color-muted: var(--dc-text-muted);
+  --color-subtle: var(--dc-text-subtle);
+
+  --color-accent: var(--dc-accent);
+  --color-accent-hover: var(--dc-accent-hover);
+  --color-accent-soft: var(--dc-accent-soft);
+  --color-on-accent: var(--dc-on-accent);
+
+  --color-success: var(--dc-success);
+  --color-warning: var(--dc-warning);
+  --color-danger: var(--dc-danger);
+  --color-danger-soft: var(--dc-danger-soft);
+  --color-speaking: var(--dc-speaking);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+
+  --radius-app: 0.625rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--dc-border);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  html[data-theme='light'] {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--dc-base);
+    color: var(--dc-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  /* Foco visível e consistente — requisito de acessibilidade. */
+  :focus-visible {
+    outline: 2px solid var(--dc-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--dc-accent-soft);
+  }
+}
+
+@layer utilities {
+  /* Scrollbar discreta, que só ganha contraste no hover do container. */
+  .dc-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--dc-scrollbar) transparent;
+  }
+
+  .dc-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .dc-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .dc-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--dc-scrollbar);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .dc-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: var(--dc-scrollbar-hover);
+  }
+
+  .dc-no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Animações discretas — nada além de fade e deslocamentos curtos. */
+@keyframes dc-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dc-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dc-pulse-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--dc-speaking) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--dc-speaking) 0%, transparent);
+  }
+}
+
+@keyframes dc-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.dc-animate-in {
+  animation: dc-slide-up 140ms ease-out;
+}
+
+.dc-fade-in {
+  animation: dc-fade-in 160ms ease-out;
+}
+
+.dc-speaking-ring {
+  animation: dc-pulse-ring 1.4s ease-out infinite;
+}
+
+.dc-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--dc-elevated);
+}
+
+.dc-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--dc-text) 6%, transparent),
+    transparent
+  );
+  animation: dc-shimmer 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

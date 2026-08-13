@@ -1,0 +1,323 @@
+// DinizCord — schema de dados.
+//
+// Princípio: o PostgreSQL é a fonte de verdade para TUDO que precisa sobreviver
+// a um restart. Estado efêmero de tempo real (presença, participantes de voz)
+// vive nas tabelas `PresenceSession` / `VoiceSession`, que funcionam como uma
+// camada temporária com heartbeat + TTL — nunca em memória do processo, porque
+// o gateway pode rodar em várias instâncias.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/db/generated"
+}
+
+// Prisma 7: a connection string vive em `prisma.config.ts` (CLI/migrate) e no
+// driver adapter passado ao PrismaClient (runtime) — não mais aqui.
+datasource db {
+  provider = "postgresql"
+}
+
+enum PresenceStatus {
+  ONLINE
+  IDLE
+  DO_NOT_DISTURB
+  OFFLINE
+}
+
+enum ChannelType {
+  TEXT
+  VOICE
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// ---------------------------------------------------------------------------
+// Identidade
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  username     String @unique
+  displayName  String
+  passwordHash String
+
+  /// Cor determinística do avatar, derivada no cadastro.
+  avatarColor String @default("#6366f1")
+
+  /// Status escolhido pelo usuário. A presença efetiva também depende de haver
+  /// alguma conexão viva (ver PresenceSession).
+  preferredStatus PresenceStatus @default(ONLINE)
+
+  /// Atividade textual livre ("Jogando Assetto Corsa EVO"). Definida manualmente.
+  activity String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions         UserSession[]
+  memberships      ServerMember[]
+  messages         Message[]
+  reactions        MessageReaction[]
+  invitesCreated   Invite[]           @relation("InviteCreator")
+  ownedServers     Server[]           @relation("ServerOwner")
+  presenceSessions PresenceSession[]
+  voiceSession     VoiceSession?
+  readStates       ChannelReadState[]
+  loginAttempts    LoginAttempt[]
+}
+
+/// Sessão de login. O cookie carrega um token opaco aleatório; o banco guarda
+/// apenas o hash, de forma que um vazamento da tabela não permite personificar
+/// ninguém.
+model UserSession {
+  id        String @id @default(cuid())
+  userId    String
+  tokenHash String @unique
+
+  userAgent String?
+  /// Hash do IP (HMAC com AUTH_SECRET) — nunca o IP em claro.
+  ipHash    String?
+
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Registro de tentativas de login para rate limiting persistente (sobrevive a
+/// restart e funciona com várias instâncias, ao contrário de um contador em RAM).
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  identifier String
+  userId     String?
+  successful Boolean  @default(false)
+  ipHash     String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([identifier, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Servidores e canais
+// ---------------------------------------------------------------------------
+
+model Server {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  iconEmoji String   @default("🏠")
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User           @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  channels Channel[]
+  members  ServerMember[]
+  invites  Invite[]
+
+  @@index([ownerId])
+}
+
+model ServerMember {
+  id       String     @id @default(cuid())
+  serverId String
+  userId   String
+  role     MemberRole @default(MEMBER)
+  nickname String?
+  joinedAt DateTime   @default(now())
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, userId])
+  @@index([userId])
+}
+
+model Channel {
+  id       String      @id @default(cuid())
+  serverId String
+  name     String
+  type     ChannelType
+  topic    String?
+  /// Ordem de exibição dentro do grupo (TEXT/VOICE) da sidebar.
+  position Int         @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  server       Server             @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  messages     Message[]
+  voiceSessions VoiceSession[]
+  readStates   ChannelReadState[]
+
+  @@unique([serverId, type, name])
+  @@index([serverId, type, position])
+}
+
+// ---------------------------------------------------------------------------
+// Mensagens
+// ---------------------------------------------------------------------------
+
+model Message {
+  id        String  @id @default(cuid())
+  channelId String
+  authorId  String
+  content   String  @db.VarChar(4000)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  editedAt  DateTime?
+  /// Exclusão lógica: preserva a thread de respostas e o histórico de auditoria.
+  deletedAt DateTime?
+
+  replyToId String?
+
+  channel   Channel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author    User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replyTo   Message?          @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[]         @relation("MessageReply")
+  reactions MessageReaction[]
+
+  // Índice que sustenta a paginação por cursor (createdAt desc, id desc).
+  @@index([channelId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([authorId])
+  @@index([replyToId])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String   @db.VarChar(32)
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+/// Marca até onde o usuário leu cada canal — base do indicador de "mensagens novas".
+model ChannelReadState {
+  userId     String
+  channelId  String
+  lastReadAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@id([userId, channelId])
+  @@index([channelId])
+}
+
+// ---------------------------------------------------------------------------
+// Convites
+// ---------------------------------------------------------------------------
+
+model Invite {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  serverId  String
+  creatorId String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+  /// null = usos ilimitados
+  maxUses   Int?
+  uses      Int       @default(0)
+  revokedAt DateTime?
+
+  server  Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  creator User   @relation("InviteCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
+  @@index([creatorId])
+}
+
+// ---------------------------------------------------------------------------
+// Barramento de eventos em tempo real
+// ---------------------------------------------------------------------------
+
+/// Outbox de eventos realtime.
+///
+/// Publicar = inserir uma linha aqui. Um trigger dispara `pg_notify` com o id, e
+/// cada instância do gateway busca a linha e entrega aos seus WebSockets. Isso
+/// substitui um Redis: o PostgreSQL já é dependência obrigatória e dá conta do
+/// volume de um app privado.
+///
+/// O payload não vai dentro do NOTIFY porque o limite dele é de 8000 bytes — uma
+/// mensagem de 4000 caracteres em UTF-8 pode estourar esse teto.
+model RealtimeEvent {
+  id      BigInt @id @default(autoincrement())
+  /// "server:<id>", "user:<id>" ou "session:<id>".
+  topic   String
+  payload Json
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Estado efêmero de tempo real
+// ---------------------------------------------------------------------------
+
+/// Uma linha por conexão WebSocket viva. O `id` é o connectionId gerado pelo
+/// gateway. Linhas sem heartbeat recente são varridas pelo sweeper — é isso que
+/// garante que um processo morto não deixe usuários "online" para sempre.
+model PresenceSession {
+  id     String @id
+  userId String
+
+  status   PresenceStatus @default(ONLINE)
+  activity String?
+
+  /// Identifica a instância do gateway que detém a conexão. Usado pelo sweeper
+  /// e para diagnóstico em ambientes multi-instância.
+  instanceId String
+
+  connectedAt     DateTime @default(now())
+  lastHeartbeatAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lastHeartbeatAt])
+  @@index([instanceId])
+}
+
+/// Participação em canal de voz. Um usuário ocupa no máximo um canal de voz por
+/// vez (entrar por outra aba move a sessão), daí o `userId` único.
+model VoiceSession {
+  id        String @id
+  userId    String @unique
+  channelId String
+
+  selfMute      Boolean @default(false)
+  selfDeaf      Boolean @default(false)
+  screenSharing Boolean @default(false)
+
+  instanceId      String
+  joinedAt        DateTime @default(now())
+  lastHeartbeatAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([lastHeartbeatAt])
+}
