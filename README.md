@@ -353,6 +353,9 @@ bundle em tempo de build; passá-las só em runtime não teria efeito.
 
 ## Deploy
 
+> **Passo a passo completo, com provedores concretos e solução de problemas:
+> [DEPLOY.md](DEPLOY.md).** A seção abaixo é o resumo.
+
 São três peças: banco, aplicação e gateway.
 
 ### 1. Banco
@@ -367,7 +370,9 @@ DATABASE_URL="<url-de-producao>" npm run db:seed
 
 ### 2. Aplicação (Vercel)
 
-Importe o repositório e configure as variáveis. Build: `npm run build`.
+Importe o repositório e configure as variáveis. A Vercel usa automaticamente o
+script `vercel-build`, que aplica as migrations antes do build — não há passo
+manual de migração a cada deploy.
 
 Cuidado: `NEXT_PUBLIC_WS_URL` precisa ser **`wss://`** — uma página em HTTPS não
 abre socket `ws://` sem criptografia.
