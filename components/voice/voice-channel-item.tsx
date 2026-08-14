@@ -5,6 +5,7 @@ import { Loader2, MicOff, MonitorUp, MoreVertical, Pencil, Trash2, Volume2, Volu
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { Tooltip } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,7 +108,7 @@ export function VoiceChannelItem({
 }
 
 function VoiceParticipant({ participant }: { participant: VoiceParticipantDTO }) {
-  const { speaking } = useVoice();
+  const { speaking, getPeerVolume, setPeerVolume } = useVoice();
   const { user } = useApp();
 
   const isSelf = participant.user.id === user.id;
@@ -116,11 +117,14 @@ function VoiceParticipant({ participant }: { participant: VoiceParticipantDTO })
     !participant.selfMute &&
     speaking.has(isSelf ? LOCAL_SPEAKER_ID : participant.sessionId);
 
-  return (
-    <li className="flex items-center gap-1.5 rounded px-1 py-1">
+  const volume = getPeerVolume(participant.user.id);
+
+  const linha = (
+    <div className="flex items-center gap-1.5 rounded px-1 py-1">
       <Avatar
         name={participant.user.displayName}
         color={participant.user.avatarColor}
+        src={participant.user.avatarUrl}
         size="sm"
         speaking={isSpeaking}
       />
@@ -149,7 +153,69 @@ function VoiceParticipant({ participant }: { participant: VoiceParticipantDTO })
             <MicOff className="size-3 text-danger" aria-label="Microfone desligado" />
           </Tooltip>
         ) : null}
+
+        {/* Volume diferente do normal fica visível sem precisar abrir o menu. */}
+        {!isSelf && volume !== 1 ? (
+          <span className="text-[10px] tabular-nums text-subtle">
+            {Math.round(volume * 100)}%
+          </span>
+        ) : null}
       </span>
+    </div>
+  );
+
+  // O próprio usuário não tem volume para ajustar: seu áudio não é reproduzido.
+  if (isSelf) return <li>{linha}</li>;
+
+  return (
+    <li>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="w-full rounded text-left transition-colors hover:bg-elevated/60"
+            aria-label={`Ajustar volume de ${participant.user.displayName}`}
+          >
+            {linha}
+          </button>
+        </PopoverTrigger>
+
+        <PopoverContent align="start" side="right" className="w-56">
+          <p className="mb-2 truncate text-xs font-medium text-content">
+            {participant.user.displayName}
+          </p>
+
+          <label className="flex items-center gap-2">
+            <Volume2 className="size-3.5 shrink-0 text-subtle" aria-hidden />
+            <input
+              type="range"
+              min={0}
+              max={200}
+              step={5}
+              value={Math.round(volume * 100)}
+              onChange={(event) =>
+                setPeerVolume(participant.user.id, Number(event.target.value) / 100)
+              }
+              className="h-1 flex-1 cursor-pointer accent-[var(--dc-accent)]"
+              aria-label={`Volume de ${participant.user.displayName}, em porcentagem`}
+            />
+            <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted">
+              {Math.round(volume * 100)}%
+            </span>
+          </label>
+
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-[11px] text-subtle">0% a 200%</span>
+            <button
+              type="button"
+              onClick={() => setPeerVolume(participant.user.id, 1)}
+              className="rounded px-2 py-0.5 text-[11px] text-muted transition-colors hover:bg-elevated hover:text-content"
+            >
+              Restaurar
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
     </li>
   );
 }

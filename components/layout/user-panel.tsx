@@ -91,6 +91,7 @@ export function UserPanel() {
               <Avatar
                 name={user.displayName}
                 color={user.avatarColor}
+                src={user.avatarUrl}
                 size="md"
                 status={status}
                 speaking={speaking}

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0a0c11',
+  themeColor: '#08080a',
   width: 'device-width',
   initialScale: 1,
   // O app é uma UI de altura fixa; permitir zoom evita prender quem precisa dele.

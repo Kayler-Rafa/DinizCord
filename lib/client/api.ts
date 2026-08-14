@@ -116,6 +116,28 @@ export const api = {
 
     changePassword: (body: { currentPassword: string; newPassword: string }) =>
       post<{ ok: true }>('/api/me/password', body),
+
+    /** Envia os bytes crus da imagem já reduzida no navegador. */
+    uploadAvatar: async (imagem: Blob) => {
+      const resposta = await fetch('/api/me/avatar', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': imagem.type || 'application/octet-stream' },
+        body: imagem,
+      });
+
+      if (!resposta.ok) {
+        const corpo: unknown = await resposta.json().catch(() => null);
+        const mensagem =
+          (corpo as { error?: { message?: string } } | null)?.error?.message ??
+          'Não foi possível enviar a foto.';
+        throw new ApiClientError(mensagem, resposta.status, 'AVATAR_UPLOAD');
+      }
+
+      return (await resposta.json()) as { avatarUrl: string };
+    },
+
+    removeAvatar: () => del<{ avatarUrl: null }>('/api/me/avatar'),
   },
 
   servers: {

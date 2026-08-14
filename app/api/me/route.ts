@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/client';
+import { avatarUrlFor } from '@/lib/db/mappers';
 import { apiHandler, json } from '@/lib/api/handler';
 import { parseJsonBody } from '@/lib/api/errors';
 import { assertSameOrigin } from '@/lib/api/request';
@@ -39,6 +40,7 @@ export async function PATCH(request: Request) {
         username: true,
         displayName: true,
         avatarColor: true,
+        avatarUpdatedAt: true,
         preferredStatus: true,
         activity: true,
       },
@@ -79,6 +81,7 @@ export async function PATCH(request: Request) {
       username: user.username,
       displayName: user.displayName,
       avatarColor: user.avatarColor,
+      avatarUrl: avatarUrlFor(user),
       preferredStatus: (user.preferredStatus === 'OFFLINE'
         ? 'ONLINE'
         : user.preferredStatus) as SelectableStatus,

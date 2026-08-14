@@ -46,8 +46,20 @@ model User {
   displayName  String
   passwordHash String
 
-  /// Cor determinística do avatar, derivada no cadastro.
+  /// Cor determinística do avatar, derivada no cadastro. Continua sendo o
+  /// fundo das iniciais para quem não enviou foto.
   avatarColor String @default("#6366f1")
+
+  /// Foto de perfil, guardada no próprio banco.
+  ///
+  /// A imagem é redimensionada no navegador para 256×256 antes de subir, então
+  /// cada linha ocupa dezenas de kilobytes. Guardar aqui evita depender de um
+  /// bucket externo — um serviço a menos para configurar em quem for rodar o
+  /// projeto, o que importa num repositório aberto.
+  avatarData      Bytes?
+  avatarMimeType  String?
+  /// Muda a cada upload e entra na URL, permitindo cache imutável no navegador.
+  avatarUpdatedAt DateTime?
 
   /// Status escolhido pelo usuário. A presença efetiva também depende de haver
   /// alguma conexão viva (ver PresenceSession).

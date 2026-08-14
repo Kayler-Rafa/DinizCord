@@ -274,6 +274,10 @@ export class AppStore {
         }));
         return;
 
+      case 'user:avatar':
+        this.applyAvatarChange(event.userId, event.avatarUrl);
+        return;
+
       case 'voice:leave':
         this.set((state) => {
           if (!state.voice[event.sessionId]) return state;
@@ -479,6 +483,58 @@ export class AppStore {
         : [...current, member];
 
       return { ...state, members: { ...state.members, [serverId]: members } };
+    });
+  }
+
+  /**
+   * Troca a foto de uma pessoa em tudo que já está em cache.
+   *
+   * O avatar aparece em mensagens antigas, na lista de membros e na sala de
+   * voz. Sem varrer os três, quem trocou a foto continuaria com a antiga nas
+   * mensagens que já estavam na tela até alguém recarregar a página.
+   */
+  private applyAvatarChange(userId: string, avatarUrl: string | null): void {
+    this.set((state) => {
+      const trocar = <T extends { id: string; avatarUrl: string | null }>(usuario: T): T =>
+        usuario.id === userId ? { ...usuario, avatarUrl } : usuario;
+
+      const messages: AppState['messages'] = {};
+      for (const [channelId, canal] of Object.entries(state.messages)) {
+        messages[channelId] = {
+          ...canal,
+          messages: canal.messages.map((mensagem) =>
+            mensagem.author.id === userId || mensagem.replyTo?.author?.id === userId
+              ? {
+                  ...mensagem,
+                  author: trocar(mensagem.author),
+                  replyTo: mensagem.replyTo
+                    ? {
+                        ...mensagem.replyTo,
+                        author: mensagem.replyTo.author ? trocar(mensagem.replyTo.author) : null,
+                      }
+                    : null,
+                }
+              : mensagem,
+          ),
+        };
+      }
+
+      const members: AppState['members'] = {};
+      for (const [serverId, lista] of Object.entries(state.members)) {
+        members[serverId] = lista.map((membro) =>
+          membro.user.id === userId ? { ...membro, user: trocar(membro.user) } : membro,
+        );
+      }
+
+      const voice: AppState['voice'] = {};
+      for (const [sessionId, participante] of Object.entries(state.voice)) {
+        voice[sessionId] =
+          participante.user.id === userId
+            ? { ...participante, user: trocar(participante.user) }
+            : participante;
+      }
+
+      return { ...state, messages, members, voice };
     });
   }
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field } from '@/components/ui/field';
-import { Avatar } from '@/components/ui/avatar';
+import { AvatarPicker } from './avatar-picker';
 import { useToast } from '@/components/ui/toast';
 import { api, ApiClientError } from '@/lib/client/api';
 import { useApp } from '@/components/providers/app-provider';
@@ -18,6 +18,7 @@ export function ProfileSettings({ onDone }: { onDone: () => void }) {
   const router = useRouter();
 
   const [displayName, setDisplayName] = React.useState(user.displayName);
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(user.avatarUrl);
   const [activityText, setActivityText] = React.useState(activity ?? '');
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
@@ -53,9 +54,21 @@ export function ProfileSettings({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-      <div className="flex items-center gap-3 rounded-[var(--radius-app)] bg-elevated p-3">
-        <Avatar name={displayName || user.displayName} color={user.avatarColor} size="xl" />
-        <div className="min-w-0">
+      <div className="space-y-3 rounded-[var(--radius-app)] bg-elevated p-3">
+        <AvatarPicker
+          userId={user.id}
+          name={displayName || user.displayName}
+          color={user.avatarColor}
+          avatarUrl={avatarUrl}
+          onChange={(nova) => {
+            setAvatarUrl(nova);
+            // O layout do servidor guarda a sessão; sem isso o avatar do painel
+            // inferior só mudaria no próximo carregamento da página.
+            router.refresh();
+          }}
+        />
+
+        <div className="min-w-0 border-t border-line pt-3">
           <p className="truncate text-base font-semibold text-content">
             {displayName || user.displayName}
           </p>

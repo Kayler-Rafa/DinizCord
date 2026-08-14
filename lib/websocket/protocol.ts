@@ -153,6 +153,8 @@ export type ServerEvent =
   | { t: 'voice:update'; participant: VoiceParticipantDTO }
   | { t: 'voice:leave'; sessionId: string; channelId: string; userId: string }
   | { t: 'webrtc:signal'; from: string; fromUserId: string; signal: WebRtcSignal }
+  /** A pessoa trocou (ou removeu) a foto de perfil. */
+  | { t: 'user:avatar'; userId: string; avatarUrl: string | null }
   | { t: 'session:revoked'; reason: string }
   | { t: 'error'; code: GatewayErrorCode; message: string };
 

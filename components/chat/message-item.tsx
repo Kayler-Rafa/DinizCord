@@ -63,7 +63,12 @@ export const MessageItem = React.memo(function MessageItem({
               )}
             </span>
           ) : (
-            <Avatar name={message.author.displayName} color={message.author.avatarColor} size="lg" />
+            <Avatar
+              name={message.author.displayName}
+              color={message.author.avatarColor}
+              src={message.author.avatarUrl}
+              size="lg"
+            />
           )}
         </div>
 
@@ -162,7 +167,13 @@ export const MessageItem = React.memo(function MessageItem({
           </Tooltip>
 
           {canEdit || canDelete ? (
-            <DropdownMenu>
+            <DropdownMenu
+              // Fechar o menu desarma a confirmação: reabrir depois não pode
+              // apagar a mensagem com um clique só.
+              onOpenChange={(aberto) => {
+                if (!aberto) setConfirmingDelete(false);
+              }}
+            >
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
@@ -184,19 +195,26 @@ export const MessageItem = React.memo(function MessageItem({
                 {canDelete ? (
                   <DropdownMenuItem
                     destructive
-                    onSelect={() => {
+                    onSelect={(event) => {
                       // Duplo passo em vez de diálogo: exclusão é frequente e o
                       // diálogo modal atrapalharia o ritmo da conversa.
-                      if (confirmingDelete) {
-                        void onDelete(message.id);
-                      } else {
+                      //
+                      // O `preventDefault` no primeiro clique é o que faz isso
+                      // funcionar: por padrão o Radix fecha o menu ao selecionar
+                      // um item, então o passo de confirmação era montado e
+                      // desmontado no mesmo instante — o usuário clicava em
+                      // "Excluir", o menu fechava e nada acontecia.
+                      if (!confirmingDelete) {
+                        event.preventDefault();
                         setConfirmingDelete(true);
-                        setTimeout(() => setConfirmingDelete(false), 4_000);
+                        return;
                       }
+
+                      void onDelete(message.id);
                     }}
                   >
                     <Trash2 aria-hidden />
-                    {confirmingDelete ? 'Confirmar exclusão' : 'Excluir mensagem'}
+                    {confirmingDelete ? 'Clique de novo para confirmar' : 'Excluir mensagem'}
                   </DropdownMenuItem>
                 ) : null}
               </DropdownMenuContent>

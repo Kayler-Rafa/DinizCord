@@ -71,6 +71,7 @@ export function MemberRow({
       <Avatar
         name={member.user.displayName}
         color={member.user.avatarColor}
+        src={member.user.avatarUrl}
         size="md"
         status={status}
       />

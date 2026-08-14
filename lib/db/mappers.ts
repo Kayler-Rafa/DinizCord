@@ -24,6 +24,7 @@ export const PUBLIC_USER_SELECT = {
   username: true,
   displayName: true,
   avatarColor: true,
+  avatarUpdatedAt: true,
 } as const;
 
 export const MESSAGE_INCLUDE = {
@@ -50,6 +51,18 @@ interface RawUser {
   username: string;
   displayName: string;
   avatarColor: string;
+  avatarUpdatedAt?: Date | null;
+}
+
+/**
+ * URL da foto, versionada pelo instante do upload.
+ *
+ * O `?v=` é o que torna seguro o cache imutável no navegador: trocar a foto
+ * gera uma URL diferente, então nunca se vê a imagem antiga.
+ */
+export function avatarUrlFor(user: { id: string; avatarUpdatedAt?: Date | null }): string | null {
+  if (!user.avatarUpdatedAt) return null;
+  return `/api/users/${user.id}/avatar?v=${user.avatarUpdatedAt.getTime()}`;
 }
 
 interface RawReaction {
@@ -81,6 +94,7 @@ export function toPublicUser(user: RawUser): PublicUser {
     username: user.username,
     displayName: user.displayName,
     avatarColor: user.avatarColor,
+    avatarUrl: avatarUrlFor(user),
   };
 }
 

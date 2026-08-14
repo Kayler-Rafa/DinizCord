@@ -5,7 +5,7 @@ import { generateInviteCode } from '@/lib/auth/crypto';
 import { ApiError } from '@/lib/api/errors';
 import { publishEvent } from '@/lib/realtime/publish';
 import { Topic } from '@/lib/realtime/topics';
-import { toMemberDTO, PUBLIC_USER_SELECT } from '@/lib/db/mappers';
+import { toMemberDTO, toPublicUser, PUBLIC_USER_SELECT } from '@/lib/db/mappers';
 import { scopedLogger } from '@/lib/logger';
 import type { InviteDTO, InvitePreviewDTO } from '@/lib/types';
 
@@ -129,7 +129,13 @@ export function toInviteDTO(invite: {
   maxUses: number | null;
   uses: number;
   revokedAt: Date | null;
-  creator: { id: string; username: string; displayName: string; avatarColor: string };
+  creator: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarColor: string;
+    avatarUpdatedAt: Date | null;
+  };
 }): InviteDTO {
   return {
     id: invite.id,
@@ -150,7 +156,7 @@ export function toInviteDTO(invite: {
         uses: invite.uses,
         revokedAt: invite.revokedAt,
       }) === null,
-    creator: invite.creator,
+    creator: toPublicUser(invite.creator),
   };
 }
 
@@ -245,7 +251,7 @@ export async function previewInvite(
       iconEmoji: invite.server.iconEmoji,
       memberCount: invite.server._count.members,
     },
-    inviter: invite.creator,
+    inviter: toPublicUser(invite.creator),
     expiresAt: invite.expiresAt?.toISOString() ?? null,
     invalidReason: inviteInvalidReason(invite),
     alreadyMember,

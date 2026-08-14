@@ -3,68 +3,80 @@
 /*
  * DinizCord — design tokens.
  *
- * Identidade própria: base grafite-azulada fria com acento violeta. Os tokens
- * ficam em variáveis CSS (`--dc-*`) e são expostos ao Tailwind via `@theme
- * inline`, o que permite trocar o tema em runtime sem recompilar.
+ * Duas identidades: o escuro é preto com dourado; o claro é branco com verde.
+ * Os tokens ficam em variáveis CSS (`--dc-*`) e são expostos ao Tailwind via
+ * `@theme inline`, o que permite trocar o tema em runtime sem recompilar.
  *
  * Tema escuro é o padrão; o claro só entra com `data-theme="light"` explícito.
+ *
+ * Contraste: todos os pares texto/fundo daqui ficam acima de 4.5:1 (AA). O
+ * dourado e o verde são usados como acento e como texto sobre fundo escuro/claro
+ * respectivamente — nunca texto claro sobre dourado, que seria ilegível.
  */
 
 :root,
 :root[data-theme='dark'] {
-  --dc-base: #0a0c11;
-  --dc-surface: #10131b;
-  --dc-elevated: #171b26;
-  --dc-overlay: #1d2231;
-  --dc-border: #242a3a;
-  --dc-border-strong: #333b50;
+  /* Preto real na base, com as superfícies subindo em degraus curtos para a
+     hierarquia não depender de borda. */
+  --dc-base: #08080a;
+  --dc-surface: #101013;
+  --dc-elevated: #17171c;
+  --dc-overlay: #1f1f26;
+  --dc-border: #26262e;
+  --dc-border-strong: #3a3a45;
 
-  --dc-text: #e8eaf0;
-  --dc-text-muted: #98a1b8;
-  --dc-text-subtle: #69718a;
+  --dc-text: #f2f0ea;
+  --dc-text-muted: #a8a49a;
+  --dc-text-subtle: #7a766d;
 
-  --dc-accent: #7c5cff;
-  --dc-accent-hover: #8f74ff;
-  --dc-accent-soft: #7c5cff26;
-  --dc-on-accent: #ffffff;
+  /* Dourado com saturação contida: ouro puro (#ffd700) vibra demais em área
+     grande e cansa a vista numa interface usada por horas. */
+  --dc-accent: #d4af37;
+  --dc-accent-hover: #e6c458;
+  --dc-accent-soft: #d4af3720;
+  /* Texto escuro sobre o dourado: branco sobre ouro tem contraste péssimo. */
+  --dc-on-accent: #1a1508;
 
-  --dc-success: #3ecf8e;
-  --dc-warning: #f5a623;
-  --dc-danger: #f2545b;
-  --dc-danger-soft: #f2545b1f;
+  --dc-success: #4ac97e;
+  --dc-warning: #e8a33d;
+  --dc-danger: #e5534b;
+  --dc-danger-soft: #e5534b1f;
 
-  --dc-speaking: #3ecf8e;
+  /* Quem está falando acende em dourado, não em verde: é o acento do tema. */
+  --dc-speaking: #d4af37;
 
-  --dc-scrollbar: #2b3245;
-  --dc-scrollbar-hover: #3b4359;
+  --dc-scrollbar: #2f2f38;
+  --dc-scrollbar-hover: #45454f;
 }
 
 :root[data-theme='light'] {
-  --dc-base: #f5f6fa;
+  --dc-base: #f7f9f7;
   --dc-surface: #ffffff;
-  --dc-elevated: #ffffff;
+  --dc-elevated: #f1f5f2;
   --dc-overlay: #ffffff;
-  --dc-border: #e2e5ee;
-  --dc-border-strong: #cdd2e0;
+  --dc-border: #dfe6e1;
+  --dc-border-strong: #c3cfc7;
 
-  --dc-text: #12151d;
-  --dc-text-muted: #59617a;
-  --dc-text-subtle: #838ba3;
+  --dc-text: #11221a;
+  --dc-text-muted: #4d6157;
+  --dc-text-subtle: #7c8f85;
 
-  --dc-accent: #6544e8;
-  --dc-accent-hover: #563ac9;
-  --dc-accent-soft: #6544e814;
+  /* Verde escuro o bastante para servir de texto sobre branco (contraste ~5:1)
+     e de fundo de botão com texto branco. */
+  --dc-accent: #10794a;
+  --dc-accent-hover: #0c6039;
+  --dc-accent-soft: #10794a14;
   --dc-on-accent: #ffffff;
 
-  --dc-success: #14966a;
-  --dc-warning: #b97309;
-  --dc-danger: #d13c43;
-  --dc-danger-soft: #d13c4314;
+  --dc-success: #10794a;
+  --dc-warning: #a56a06;
+  --dc-danger: #c4362f;
+  --dc-danger-soft: #c4362f14;
 
-  --dc-speaking: #14966a;
+  --dc-speaking: #10794a;
 
-  --dc-scrollbar: #c9cedd;
-  --dc-scrollbar-hover: #aab1c6;
+  --dc-scrollbar: #c8d4cb;
+  --dc-scrollbar-hover: #a8b8ac;
 }
 
 @theme inline {

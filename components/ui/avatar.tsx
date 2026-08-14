@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { cn, initialsOf } from '@/lib/utils';
 import type { PresenceStatus } from '@/lib/types';
 import { PresenceDot } from './presence-dot';
@@ -14,6 +15,8 @@ const SIZES = {
 interface AvatarProps {
   name: string;
   color: string;
+  /** Foto de perfil; quando ausente, caem as iniciais sobre a cor. */
+  src?: string | null;
   size?: keyof typeof SIZES;
   /** Quando informado, desenha o indicador de presença no canto. */
   status?: PresenceStatus | undefined;
@@ -22,23 +25,52 @@ interface AvatarProps {
 }
 
 /**
- * Avatar textual — o projeto não hospeda upload de imagens, então a identidade
- * visual vem das iniciais sobre uma cor determinística por usuário.
+ * Avatar do usuário.
+ *
+ * Mostra a foto quando existe e cai para as iniciais sobre uma cor
+ * determinística quando não. As iniciais também voltam se a imagem falhar ao
+ * carregar — um avatar quebrado é pior que nenhum.
  */
-export function Avatar({ name, color, size = 'md', status, speaking, className }: AvatarProps) {
+export function Avatar({ name, color, src, size = 'md', status, speaking, className }: AvatarProps) {
+  // A falha é guardada junto da URL que falhou, e não zerada por efeito ao
+  // trocar de foto: assim uma URL nova já nasce "sem falha" no mesmo render,
+  // sem passar por um quadro exibindo as iniciais.
+  const [falha, setFalha] = React.useState<{ src: string | null; falhou: boolean }>({
+    src: src ?? null,
+    falhou: false,
+  });
+
+  const falhou = falha.src === (src ?? null) && falha.falhou;
+  const mostrarFoto = Boolean(src) && !falhou;
+
   return (
     <div className={cn('relative shrink-0', className)}>
       <div
         className={cn(
-          'flex items-center justify-center rounded-full font-semibold text-white select-none',
+          'flex items-center justify-center overflow-hidden rounded-full font-semibold text-white select-none',
           'ring-2 transition-[box-shadow,ring-color] duration-150',
           SIZES[size],
           speaking ? 'ring-speaking' : 'ring-transparent',
         )}
-        style={{ backgroundColor: color }}
+        style={mostrarFoto ? undefined : { backgroundColor: color }}
         aria-hidden
       >
-        {initialsOf(name)}
+        {mostrarFoto ? (
+          // `img` puro em vez de next/image: a rota devolve bytes do banco com
+          // cache imutável, então o otimizador do Next não teria o que fazer
+          // além de adicionar um salto a mais.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src ?? ''}
+            alt=""
+            className="size-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={() => setFalha({ src: src ?? null, falhou: true })}
+          />
+        ) : (
+          initialsOf(name)
+        )}
       </div>
 
       {status ? (

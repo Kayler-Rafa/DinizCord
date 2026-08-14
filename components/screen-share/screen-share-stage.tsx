@@ -1,13 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { Maximize2, Minimize2, MonitorUp, X } from 'lucide-react';
+import { Expand, Maximize2, Minimize2, MonitorUp, Shrink, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useVoice } from '@/components/providers/voice-provider';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { useStoreSelector } from '@/hooks/useStore';
 import { useApp } from '@/components/providers/app-provider';
+import { useFullscreen } from '@/hooks/useFullscreen';
 import { VideoSurface } from './video-surface';
 
 /**
@@ -26,6 +27,13 @@ export function ScreenShareStage() {
   const [selectedPeerId, setSelectedPeerId] = React.useState<string | null>(null);
   const [expanded, setExpanded] = React.useState(false);
 
+  const palcoRef = React.useRef<HTMLElement>(null);
+  const {
+    ativo: telaCheia,
+    suportado: suportaTelaCheia,
+    alternar: alternarTelaCheia,
+  } = useFullscreen(palcoRef);
+
   if (!channelId || screenStreams.length === 0) return null;
 
   // A seleção é derivada, não sincronizada por efeito: se a transmissão
@@ -42,9 +50,12 @@ export function ScreenShareStage() {
 
   return (
     <section
+      ref={palcoRef}
       className={cn(
         'shrink-0 border-b border-line bg-black/40',
-        expanded ? 'h-[70vh]' : 'h-[38vh] min-h-[220px]',
+        // Em tela cheia o elemento ocupa a tela toda, então altura fixa daria
+        // faixas pretas em cima e embaixo.
+        telaCheia ? 'h-screen' : expanded ? 'h-[70vh]' : 'h-[38vh] min-h-[220px]',
       )}
       aria-label="Transmissões de tela"
     >
@@ -76,16 +87,37 @@ export function ScreenShareStage() {
             </div>
           ) : null}
 
-          <Tooltip content={expanded ? 'Reduzir' : 'Ampliar'}>
-            <button
-              type="button"
-              onClick={() => setExpanded((current) => !current)}
-              className="rounded p-1 text-subtle transition-colors hover:text-content"
-              aria-label={expanded ? 'Reduzir transmissão' : 'Ampliar transmissão'}
-            >
-              {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-            </button>
-          </Tooltip>
+          {/* Ampliar continua útil: dá mais espaço sem esconder o chat. */}
+          {!telaCheia ? (
+            <Tooltip content={expanded ? 'Reduzir' : 'Ampliar'}>
+              <button
+                type="button"
+                onClick={() => setExpanded((current) => !current)}
+                className="rounded p-1 text-subtle transition-colors hover:text-content"
+                aria-label={expanded ? 'Reduzir transmissão' : 'Ampliar transmissão'}
+              >
+                {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+              </button>
+            </Tooltip>
+          ) : null}
+
+          {suportaTelaCheia ? (
+            <Tooltip content={telaCheia ? 'Sair da tela cheia (Esc)' : 'Tela cheia'}>
+              <button
+                type="button"
+                onClick={() => void alternarTelaCheia()}
+                className="rounded p-1 text-subtle transition-colors hover:text-content"
+                aria-label={telaCheia ? 'Sair da tela cheia' : 'Ver em tela cheia'}
+                aria-pressed={telaCheia}
+              >
+                {telaCheia ? (
+                  <Shrink className="size-3.5" />
+                ) : (
+                  <Expand className="size-3.5" />
+                )}
+              </button>
+            </Tooltip>
+          ) : null}
 
           {sharingScreen ? (
             <Tooltip content="Parar de compartilhar">

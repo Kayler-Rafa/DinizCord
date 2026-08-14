@@ -41,6 +41,8 @@ export interface PublicUser {
   username: string;
   displayName: string;
   avatarColor: string;
+  /** null quando a pessoa não enviou foto — a interface cai nas iniciais. */
+  avatarUrl: string | null;
 }
 
 export interface SessionUser extends PublicUser {

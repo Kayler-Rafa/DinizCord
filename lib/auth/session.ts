@@ -3,6 +3,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { prisma } from '@/lib/db/client';
+import { avatarUrlFor } from '@/lib/db/mappers';
 import { generateSessionToken, hashIp, hashSessionToken } from './crypto';
 import { scopedLogger } from '@/lib/logger';
 import type { SelectableStatus, SessionUser } from '@/lib/types';
@@ -80,6 +81,7 @@ export const getSession = cache(async (): Promise<AuthenticatedSession | null> =
           username: true,
           displayName: true,
           avatarColor: true,
+          avatarUpdatedAt: true,
           preferredStatus: true,
           activity: true,
         },
@@ -116,6 +118,7 @@ export const getSession = cache(async (): Promise<AuthenticatedSession | null> =
       username: user.username,
       displayName: user.displayName,
       avatarColor: user.avatarColor,
+      avatarUrl: avatarUrlFor(user),
       // OFFLINE nunca é um status escolhido; se estiver no banco, trate como ONLINE.
       preferredStatus: (user.preferredStatus === 'OFFLINE'
         ? 'ONLINE'

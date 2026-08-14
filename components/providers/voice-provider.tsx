@@ -12,6 +12,7 @@ import {
   VoiceEngine,
   type RemotePeerMedia,
 } from '@/lib/webrtc/voice-engine';
+import { AudioOutput, MAX_GAIN } from '@/lib/webrtc/audio-output';
 import { clientEnv } from '@/lib/env.client';
 import type { VoiceParticipantDTO } from '@/lib/types';
 
@@ -44,9 +45,46 @@ interface VoiceContextValue {
   toggleDeafen: () => void;
   startScreenShare: () => Promise<void>;
   stopScreenShare: () => void;
+
+  /** Volume de uma pessoa: 0 = mudo, 1 = normal, 2 = dobro. */
+  getPeerVolume: (userId: string) => number;
+  setPeerVolume: (userId: string, volume: number) => void;
 }
 
 const VoiceContext = React.createContext<VoiceContextValue | null>(null);
+
+const CHAVE_VOLUMES = 'dinizcord-volumes';
+
+function lerVolumes(): Record<string, number> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const bruto = window.localStorage.getItem(CHAVE_VOLUMES);
+    if (!bruto) return {};
+
+    const dados: unknown = JSON.parse(bruto);
+    if (typeof dados !== 'object' || dados === null) return {};
+
+    // Sanear na leitura: o localStorage é editável pelo usuário, e um valor
+    // absurdo aqui viraria um estouro no ganho do WebAudio.
+    const limpo: Record<string, number> = {};
+    for (const [id, valor] of Object.entries(dados as Record<string, unknown>)) {
+      if (typeof valor === 'number' && Number.isFinite(valor)) {
+        limpo[id] = Math.min(MAX_GAIN, Math.max(0, valor));
+      }
+    }
+    return limpo;
+  } catch {
+    return {};
+  }
+}
+
+function gravarVolumes(volumes: Record<string, number>): void {
+  try {
+    window.localStorage.setItem(CHAVE_VOLUMES, JSON.stringify(volumes));
+  } catch {
+    // Modo privativo: vale para a sessão atual.
+  }
+}
 
 export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const { send, onSignal, store } = useApp();
@@ -61,6 +99,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const [sharingScreen, setSharingScreen] = React.useState(false);
   const [speaking, setSpeaking] = React.useState<ReadonlySet<string>>(new Set());
   const [remotePeers, setRemotePeers] = React.useState<RemotePeerMedia[]>([]);
+
+  /**
+   * Volume por PESSOA, não por conexão.
+   *
+   * A chave é o id do usuário porque o id da sessão muda a cada reconexão —
+   * ajustar o volume de alguém e perdê-lo quando a pessoa cai da chamada seria
+   * inútil. Fica no localStorage por ser preferência de dispositivo.
+   */
+  const [volumes, setVolumes] = React.useState<Record<string, number>>(() => lerVolumes());
+  const audioOutputRef = React.useRef<AudioOutput | null>(null);
   const [localScreenStream, setLocalScreenStream] = React.useState<MediaStream | null>(null);
   const [turnMissing, setTurnMissing] = React.useState(false);
 
@@ -268,10 +316,51 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [connection, teardown, toast, channelIdRef]);
 
+  /**
+   * Mantém a saída de áudio em sincronia com os participantes.
+   *
+   * O ganho passa por um GainNode do WebAudio porque `HTMLAudioElement.volume`
+   * só vai até 1 — não daria para amplificar alguém que fala baixo.
+   */
+  React.useEffect(() => {
+    const saida = (audioOutputRef.current ??= new AudioOutput());
+    const vivos = new Set<string>();
+
+    for (const peer of remotePeers) {
+      if (!peer.audio) continue;
+      vivos.add(peer.peerId);
+
+      const userId = participants[peer.peerId]?.user.id;
+      const escolhido = userId ? (volumes[userId] ?? 1) : 1;
+      saida.attach(peer.peerId, peer.audio, deafened ? 0 : escolhido);
+    }
+
+    // Desliga quem saiu da chamada.
+    for (const id of saida.attachedIds()) {
+      if (!vivos.has(id)) saida.detach(id);
+    }
+  }, [remotePeers, volumes, deafened, participants]);
+
+  const setPeerVolume = React.useCallback((userId: string, valor: number) => {
+    const limitado = Math.min(MAX_GAIN, Math.max(0, valor));
+    setVolumes((atual) => {
+      const proximo = { ...atual, [userId]: limitado };
+      gravarVolumes(proximo);
+      return proximo;
+    });
+  }, []);
+
+  const getPeerVolume = React.useCallback(
+    (userId: string) => volumes[userId] ?? 1,
+    [volumes],
+  );
+
   React.useEffect(() => {
     return () => {
       engineRef.current?.dispose();
       engineRef.current = null;
+      audioOutputRef.current?.dispose();
+      audioOutputRef.current = null;
     };
   }, []);
 
@@ -292,6 +381,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       toggleDeafen,
       startScreenShare,
       stopScreenShare,
+      getPeerVolume,
+      setPeerVolume,
     }),
     [
       channelId,
@@ -309,50 +400,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       toggleDeafen,
       startScreenShare,
       stopScreenShare,
+      getPeerVolume,
+      setPeerVolume,
     ],
   );
 
-  return (
-    <VoiceContext.Provider value={value}>
-      {children}
-      <RemoteAudio peers={remotePeers} deafened={deafened} />
-    </VoiceContext.Provider>
-  );
-}
-
-/**
- * Reprodução do áudio remoto.
- *
- * Um elemento `<audio>` por participante, fora da árvore visível. Precisa ser
- * um elemento de mídia real: um MediaStream só sai pelas caixas de som quando
- * está ligado a um `<audio>`/`<video>`.
- */
-function RemoteAudio({ peers, deafened }: { peers: RemotePeerMedia[]; deafened: boolean }) {
-  return (
-    <div className="sr-only" aria-hidden>
-      {peers.map((peer) =>
-        peer.audio ? (
-          <AudioSink key={peer.peerId} stream={peer.audio} muted={deafened} />
-        ) : null,
-      )}
-    </div>
-  );
-}
-
-function AudioSink({ stream, muted }: { stream: MediaStream; muted: boolean }) {
-  const ref = React.useRef<HTMLAudioElement>(null);
-
-  React.useEffect(() => {
-    const element = ref.current;
-    if (!element || element.srcObject === stream) return;
-
-    element.srcObject = stream;
-    // Autoplay pode ser bloqueado; o erro é silencioso porque entrar na chamada
-    // já foi um gesto do usuário e o áudio destrava em seguida.
-    void element.play().catch(() => undefined);
-  }, [stream]);
-
-  return <audio ref={ref} autoPlay playsInline muted={muted} />;
+  return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>;
 }
 
 export function useVoice(): VoiceContextValue {
