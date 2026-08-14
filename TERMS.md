@@ -49,9 +49,18 @@ comportamento — é original.
 
 ## 3. Licença do código
 
-O uso, cópia, modificação e redistribuição do código são regidos pelo arquivo
-[LICENSE](LICENSE) na raiz deste repositório. **É a licença, e não este
-documento, que define seus direitos sobre o código.**
+O uso, cópia, modificação e redistribuição do código são regidos pela
+**Licença Apache 2.0**, no arquivo [LICENSE](LICENSE). **É a licença, e não este
+documento, que define seus direitos sobre o código** — inclusive a isenção de
+garantias (Seção 7) e a limitação de responsabilidade (Seção 8).
+
+Você pode usar, modificar, redistribuir e até explorar comercialmente o
+software, desde que cumpra as condições da Seção 4, entre elas:
+
+- manter os avisos de copyright e atribuição;
+- **reproduzir o conteúdo do arquivo [NOTICE](NOTICE)**, que credita o DinizCord
+  como código base original;
+- sinalizar de forma visível os arquivos que você alterou.
 
 Em caso de conflito entre este documento e a licença, **a licença prevalece**.
 

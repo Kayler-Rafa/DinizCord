@@ -10,8 +10,11 @@ modelo de servidor/canais são convenções do gênero.
 
 ---
 
-> **Uso, licenciamento e responsabilidades:** leia [TERMS.md](TERMS.md) antes de
-> hospedar ou derivar este projeto.
+**Licença:** [Apache 2.0](LICENSE). Você pode usar, modificar e redistribuir,
+inclusive comercialmente. Em troca, a Seção 4 exige preservar os avisos de
+atribuição e reproduzir o [NOTICE](NOTICE), que credita o DinizCord como código
+base. O software vem sem garantias, e quem opera uma instância é o responsável
+por ela — condições completas em [TERMS.md](TERMS.md).
 
 ## Sumário
 

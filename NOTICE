@@ -1,0 +1,48 @@
+DinizCord
+Copyright 2026 Rafael Diniz
+
+Este produto inclui software desenvolvido originalmente no projeto DinizCord
+(https://github.com/Kayler-Rafa/DinizCord).
+
+--------------------------------------------------------------------------------
+ATRIBUIÇÃO OBRIGATÓRIA
+--------------------------------------------------------------------------------
+
+A Seção 4(d) da Licença Apache 2.0 exige que qualquer trabalho derivado
+reproduza o conteúdo deste arquivo. Se você fez um fork, modificou ou
+redistribuiu este software, precisa manter este aviso em pelo menos um destes
+lugares:
+
+  - um arquivo NOTICE distribuído junto com o seu trabalho derivado;
+  - o código-fonte ou a documentação, se distribuídos junto;
+  - uma tela do próprio aplicativo, onde avisos de terceiros normalmente
+    aparecem (uma seção "Sobre", por exemplo).
+
+Você pode acrescentar os seus próprios avisos de copyright ao lado deste, mas
+não pode removê-lo nem alterá-lo.
+
+--------------------------------------------------------------------------------
+SOBRE O PROJETO
+--------------------------------------------------------------------------------
+
+O DinizCord é uma plataforma de comunicação em grupo (texto, voz por WebRTC e
+compartilhamento de tela) feita para ser auto-hospedada por grupos pequenos.
+
+Ele não é uma cópia, um clone nem um substituto de qualquer plataforma
+comercial de comunicação, e não utiliza código, protocolo, marca ou identidade
+visual de terceiros. Veja TERMS.md.
+
+--------------------------------------------------------------------------------
+RESPONSABILIDADE
+--------------------------------------------------------------------------------
+
+O software é fornecido "NO ESTADO EM QUE SE ENCONTRA", sem garantias de
+qualquer natureza (Seção 7 da Licença) e sem responsabilidade do autor por
+quaisquer danos (Seção 8).
+
+Quem instala e opera uma instância é o único responsável por ela: pelo conteúdo
+trafegado, pela moderação, pela segurança e pela conformidade legal. O autor
+original não hospeda instâncias de terceiros, não tem acesso a dados de
+terceiros e não exerce controle sobre o uso do software após a distribuição.
+
+Condições completas em TERMS.md.

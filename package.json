@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "DinizCord — plataforma privada de comunicação (chat, voz e compartilhamento de tela) para um grupo pequeno de amigos.",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "type": "module",
   "engines": {
     "node": ">=20.11.0"
