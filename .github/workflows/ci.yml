@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Um push logo após o outro cancela a execução anterior: só interessa o estado
+# do commit mais recente.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Lint, tipos e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # PostgreSQL de verdade, não mock: a suíte exercita constraints, cascade,
+    # transações e o trigger de LISTEN/NOTIFY. Rodar contra outra coisa testaria
+    # outro sistema.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dinizcord
+          POSTGRES_PASSWORD: dinizcord
+          POSTGRES_DB: dinizcord
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dinizcord -d dinizcord"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://dinizcord:dinizcord@localhost:5432/dinizcord?schema=public
+      AUTH_SECRET: segredo-de-ci-com-tamanho-mais-que-suficiente-1234567890
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_WS_URL: ws://localhost:3001
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Aplicar migrations
+        run: npm run db:deploy
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Checagem de tipos
+        run: npm run typecheck
+
+      - name: Testes
+        # A suíte sobe um gateway WebSocket real e fala o protocolo de verdade,
+        # com handshake, ticket e LISTEN/NOTIFY.
+        run: npm test
+
+      - name: Build de produção
+        run: npm run build

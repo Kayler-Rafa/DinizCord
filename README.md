@@ -1,5 +1,8 @@
 # DinizCord
 
+[![CI](https://github.com/Kayler-Rafa/DinizCord/actions/workflows/ci.yml/badge.svg)](https://github.com/Kayler-Rafa/DinizCord/actions/workflows/ci.yml)
+[![Licença: Apache 2.0](https://img.shields.io/badge/licen%C3%A7a-Apache%202.0-blue.svg)](LICENSE)
+
 Plataforma privada de comunicação para um grupo pequeno de amigos: canais de
 texto com histórico, canais de voz por WebRTC, compartilhamento de tela,
 presença em tempo real e convites por link.
