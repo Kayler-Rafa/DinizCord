@@ -25,6 +25,8 @@ interface MessageItemProps {
   onEdit: (messageId: string, content: string) => Promise<boolean>;
   onDelete: (messageId: string) => Promise<boolean>;
   onToggleReaction: (messageId: string, emoji: string) => void;
+  /** Nome de usuário em minúsculas → id, para destacar as menções. */
+  membrosPorNome: Map<string, string>;
 }
 
 export const MessageItem = React.memo(function MessageItem({
@@ -36,6 +38,7 @@ export const MessageItem = React.memo(function MessageItem({
   onEdit,
   onDelete,
   onToggleReaction,
+  membrosPorNome,
 }: MessageItemProps) {
   const [editing, setEditing] = React.useState(false);
   const [confirmingDelete, setConfirmingDelete] = React.useState(false);
@@ -99,7 +102,12 @@ export const MessageItem = React.memo(function MessageItem({
               }}
             />
           ) : (
-            <MessageContent content={message.content} edited={message.editedAt !== null} />
+            <MessageContent
+              content={message.content}
+              edited={message.editedAt !== null}
+              membrosPorNome={membrosPorNome}
+              meCitou={message.mentions.includes(viewerId)}
+            />
           )}
 
           {message.reactions.length > 0 ? (

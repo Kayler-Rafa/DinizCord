@@ -1,5 +1,8 @@
+'use client';
+
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { dividirPorMencoes } from '@/lib/mentions';
 
 /**
  * Renderização do texto da mensagem.
@@ -15,7 +18,7 @@ import { cn } from '@/lib/utils';
  */
 
 interface Segment {
-  type: 'text' | 'code' | 'codeblock' | 'bold' | 'italic' | 'link';
+  type: 'text' | 'code' | 'codeblock' | 'bold' | 'italic' | 'link' | 'mention';
   value: string;
   language?: string;
 }
@@ -74,6 +77,26 @@ function pushText(segments: Segment[], text: string): void {
   }
 }
 
+/**
+ * Aplica o destaque de menções ao que sobrou como texto puro.
+ *
+ * Roda por último, sobre os trechos já separados de código e link: assim um
+ * `@nome` dentro de um bloco de código continua sendo código, e não vira menção.
+ */
+function realcarMencoes(segments: Segment[], membrosPorNome: Map<string, string>): Segment[] {
+  if (membrosPorNome.size === 0) return segments;
+
+  return segments.flatMap((segment) => {
+    if (segment.type !== 'text') return segment;
+
+    return dividirPorMencoes(segment.value, membrosPorNome).map((trecho) =>
+      trecho.tipo === 'mencao'
+        ? ({ type: 'mention', value: trecho.valor } as Segment)
+        : ({ type: 'text', value: trecho.valor } as Segment),
+    );
+  });
+}
+
 /** Extrai blocos ```…``` antes de qualquer outra formatação. */
 function parseContent(content: string): Segment[][] {
   const blocks: Segment[][] = [];
@@ -97,11 +120,32 @@ function parseContent(content: string): Segment[][] {
   return blocks;
 }
 
-export function MessageContent({ content, edited }: { content: string; edited: boolean }) {
-  const blocks = React.useMemo(() => parseContent(content), [content]);
+export function MessageContent({
+  content,
+  edited,
+  membrosPorNome,
+  meCitou,
+}: {
+  content: string;
+  edited: boolean;
+  /** Nome de usuário em minúsculas → id. Vazio quando os membros não carregaram. */
+  membrosPorNome: Map<string, string>;
+  meCitou: boolean;
+}) {
+  const blocks = React.useMemo(
+    () => parseContent(content).map((bloco) => realcarMencoes(bloco, membrosPorNome)),
+    [content, membrosPorNome],
+  );
 
   return (
-    <div className="text-sm leading-relaxed text-content">
+    <div
+      className={cn(
+        'text-sm leading-relaxed text-content',
+        // A mensagem que cita você ganha uma marca à esquerda: dá para achá-la
+        // rolando a conversa sem ler tudo.
+        meCitou && 'border-l-2 border-accent pl-2',
+      )}
+    >
       {blocks.map((segments, blockIndex) => {
         const first = segments[0];
 
@@ -149,6 +193,13 @@ function Segment({ segment }: { segment: Segment }) {
 
     case 'italic':
       return <em className="italic">{segment.value}</em>;
+
+    case 'mention':
+      return (
+        <span className="rounded bg-accent-soft px-1 py-0.5 font-medium text-accent">
+          {segment.value}
+        </span>
+      );
 
     case 'link':
       return (

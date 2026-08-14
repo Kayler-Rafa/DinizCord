@@ -5,6 +5,7 @@ import { ApiError } from '@/lib/api/errors';
 import { publishEvent } from '@/lib/realtime/publish';
 import { Topic } from '@/lib/realtime/topics';
 import { MESSAGE_INCLUDE, groupReactions, toMessageDTO } from '@/lib/db/mappers';
+import { extrairMencoes } from '@/lib/mentions';
 import { scopedLogger } from '@/lib/logger';
 import type { MessageDTO, MessagePage, UnreadStateDTO } from '@/lib/types';
 
@@ -74,6 +75,7 @@ export async function createMessage(params: {
       authorId: params.authorId,
       content: params.content,
       replyToId: params.replyToId ?? null,
+      mentions: await resolverMencoes(params.content, params.serverId, params.authorId),
     },
     include: MESSAGE_INCLUDE,
   });
@@ -88,6 +90,29 @@ export async function createMessage(params: {
   return toMessageDTO(message, params.authorId);
 }
 
+/**
+ * Converte `@nome` em ids de usuário.
+ *
+ * Só resolve nomes de quem é MEMBRO do servidor: citar alguém de fora não pode
+ * gerar notificação nem revelar que aquela conta existe. O próprio autor é
+ * descartado — ninguém precisa ser notificado da própria mensagem.
+ */
+async function resolverMencoes(
+  conteudo: string,
+  serverId: string,
+  authorId: string,
+): Promise<string[]> {
+  const nomes = extrairMencoes(conteudo);
+  if (nomes.length === 0) return [];
+
+  const membros = await prisma.serverMember.findMany({
+    where: { serverId, user: { username: { in: nomes } } },
+    select: { userId: true },
+  });
+
+  return membros.map((membro) => membro.userId).filter((id) => id !== authorId);
+}
+
 export async function editMessage(params: {
   messageId: string;
   serverId: string;
@@ -96,7 +121,11 @@ export async function editMessage(params: {
 }): Promise<MessageDTO> {
   const message = await prisma.message.update({
     where: { id: params.messageId },
-    data: { content: params.content, editedAt: new Date() },
+    data: {
+      content: params.content,
+      editedAt: new Date(),
+      mentions: await resolverMencoes(params.content, params.serverId, params.viewerId),
+    },
     include: MESSAGE_INCLUDE,
   });
 

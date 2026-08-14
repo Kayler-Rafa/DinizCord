@@ -12,6 +12,7 @@ import { UserPanel } from './user-panel';
 import { ConnectionBanner } from './connection-banner';
 import { ScreenShareStage } from '@/components/screen-share/screen-share-stage';
 import { useChannel, useServers } from '@/hooks/useStore';
+import { useNotifications } from '@/hooks/useNotifications';
 
 /**
  * Layout de três colunas.
@@ -45,6 +46,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const servers = useServers();
   const channel = useChannel(channelId);
+
+  // Um único ponto de escuta para som, contador no título e notificação. Se
+  // estivesse dentro do canal, trocar de canal remontaria tudo.
+  useNotifications();
   const serverId = channel?.serverId ?? servers[0]?.id ?? null;
 
   /**

@@ -10,6 +10,9 @@ modelo de servidor/canais são convenções do gênero.
 
 ---
 
+> **Uso, licenciamento e responsabilidades:** leia [TERMS.md](TERMS.md) antes de
+> hospedar ou derivar este projeto.
+
 ## Sumário
 
 - [Stack](#stack)
@@ -25,6 +28,7 @@ modelo de servidor/canais são convenções do gênero.
 - [WebRTC, STUN e TURN](#webrtc-stun-e-turn)
 - [Segurança](#segurança)
 - [Limitações conhecidas](#limitações-conhecidas)
+- [Termos de uso](TERMS.md)
 
 ---
 

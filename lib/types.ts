@@ -105,6 +105,8 @@ export interface MessageDTO {
   author: PublicUser;
   replyTo: MessageReplyPreview | null;
   reactions: ReactionGroup[];
+  /** Ids dos membros citados com @, já resolvidos pelo servidor. */
+  mentions: string[];
 }
 
 export interface MessagePage {

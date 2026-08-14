@@ -9,7 +9,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { useMessages } from '@/hooks/useMessages';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useApp } from '@/components/providers/app-provider';
-import { useChannel, useServer } from '@/hooks/useStore';
+import { useChannel, useMembers, useServer } from '@/hooks/useStore';
 import { useLayout } from '@/components/layout/app-shell';
 import type { MessageDTO } from '@/lib/types';
 
@@ -58,6 +58,22 @@ export function ChannelView({ channelId }: { channelId: string }) {
   React.useEffect(() => {
     if (loaded) markRead();
   }, [loaded, markRead]);
+
+  const membros = useMembers(channel?.serverId ?? null);
+
+  /**
+   * Nome de usuário em minúsculas → id.
+   *
+   * Serve tanto para destacar as menções no histórico quanto para alimentar o
+   * autocomplete do compositor, então é montado uma vez só aqui.
+   */
+  const membrosPorNome = React.useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const membro of membros ?? []) {
+      mapa.set(membro.user.username.toLowerCase(), membro.user.id);
+    }
+    return mapa;
+  }, [membros]);
 
   const canModerate = server?.viewerRole === 'OWNER' || server?.viewerRole === 'ADMIN';
 
@@ -113,6 +129,7 @@ export function ChannelView({ channelId }: { channelId: string }) {
         onDelete={deleteMessage}
         onToggleReaction={(messageId, emoji) => void toggleReaction(messageId, emoji)}
         onReachBottom={markRead}
+        membrosPorNome={membrosPorNome}
       />
 
       <TypingIndicator channelId={channelId} serverId={channel.serverId} />
@@ -124,6 +141,7 @@ export function ChannelView({ channelId }: { channelId: string }) {
         onCancelReply={() => setReplyingTo(null)}
         onSend={sendMessage}
         onTyping={notifyTyping}
+        membros={membros ?? []}
       />
     </div>
   );

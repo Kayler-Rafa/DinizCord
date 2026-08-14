@@ -78,6 +78,7 @@ interface RawMessage {
   createdAt: Date;
   editedAt: Date | null;
   deletedAt: Date | null;
+  mentions: string[];
   author: RawUser;
   replyTo: {
     id: string;
@@ -146,6 +147,7 @@ export function toMessageDTO(message: RawMessage, viewerId: string | null): Mess
         }
       : null,
     reactions: deleted ? [] : groupReactions(message.reactions, viewerId),
+    mentions: deleted ? [] : message.mentions,
   };
 }
 

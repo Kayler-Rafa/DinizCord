@@ -44,6 +44,7 @@ interface MessageListProps {
   onDelete: (messageId: string) => Promise<boolean>;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onReachBottom: () => void;
+  membrosPorNome: Map<string, string>;
 }
 
 export function MessageList({
@@ -62,6 +63,7 @@ export function MessageList({
   onDelete,
   onToggleReaction,
   onReachBottom,
+  membrosPorNome,
 }: MessageListProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = React.useState(true);
@@ -191,6 +193,7 @@ export function MessageList({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onToggleReaction={onToggleReaction}
+                  membrosPorNome={membrosPorNome}
                 />
               </React.Fragment>
             );

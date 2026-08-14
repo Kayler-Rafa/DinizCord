@@ -13,6 +13,7 @@ import {
   type RemotePeerMedia,
 } from '@/lib/webrtc/voice-engine';
 import { AudioOutput, MAX_GAIN } from '@/lib/webrtc/audio-output';
+import { destravarSons, tocarSom } from '@/lib/client/sounds';
 import { clientEnv } from '@/lib/env.client';
 import type { VoiceParticipantDTO } from '@/lib/types';
 
@@ -87,7 +88,8 @@ function gravarVolumes(volumes: Record<string, number>): void {
 }
 
 export function VoiceProvider({ children }: { children: React.ReactNode }) {
-  const { send, onSignal, store } = useApp();
+  const { send, onSignal, store, user } = useApp();
+  const viewerId = user.id;
   const { toast } = useToast();
 
   const sessionId = useStoreSelector((state) => state.sessionId);
@@ -114,10 +116,23 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const engineRef = React.useRef<VoiceEngine | null>(null);
 
+  /**
+   * Qual `sessionId` o motor em uso foi construído com.
+   *
+   * O id da conexão é o endereço do peer no mesh E a chave da sessão de voz no
+   * servidor. Quando o WebSocket reconecta, o gateway atribui um id novo e
+   * apaga a sessão antiga — quem estava na chamada sai dela do ponto de vista
+   * do servidor. Guardar o id usado é o que permite detectar essa divergência.
+   */
+  const engineSessionIdRef = React.useRef<string | null>(null);
+
   // `join` e `leave` precisam do canal atual sem serem recriados a cada troca —
   // eles são passados adiante pelo contexto e uma nova identidade re-renderizaria
   // toda a árvore de voz.
   const channelIdRef = useLatestRef(channelId);
+  const mutedRef = useLatestRef(muted);
+  const deafenedRef = useLatestRef(deafened);
+  const sharingScreenRef = useLatestRef(sharingScreen);
 
   // Participantes do canal atual, direto do store — é a lista que o servidor
   // mantém, e não uma cópia local que poderia divergir.
@@ -151,6 +166,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const teardown = React.useCallback(() => {
     engineRef.current?.dispose();
     engineRef.current = null;
+    engineSessionIdRef.current = null;
 
     setChannelId(null);
     setSharingScreen(false);
@@ -172,7 +188,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (channelIdRef.current === targetChannelId) return;
+      // Já está nesta sala COM esta conexão: nada a fazer. A segunda condição
+      // é o que permite refazer a entrada depois de uma reconexão, quando o
+      // canal é o mesmo mas o id da conexão mudou.
+      if (channelIdRef.current === targetChannelId && engineSessionIdRef.current === sessionId) {
+        return;
+      }
+
+      // Entrar na chamada é o gesto do usuário que destrava o áudio; sem isto o
+      // primeiro som seria engolido pela política de autoplay.
+      destravarSons();
 
       setConnecting(true);
 
@@ -206,12 +231,22 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         });
 
         engineRef.current = engine;
+        engineSessionIdRef.current = sessionId;
 
         await engine.startMicrophone();
+
+        // Numa reentrada após reconexão, o motor nasce sem saber que o usuário
+        // estava mudo. Restaurar antes de anunciar a entrada evita o instante
+        // em que ele volta com o microfone aberto sem ter pedido.
+        if (mutedRef.current) engine.setMuted(true);
+        if (deafenedRef.current) engine.setDeafened(true);
 
         // Só entra na sala depois que o microfone abriu: entrar e aparecer mudo
         // por falta de permissão seria confuso para quem já está lá.
         send({ t: 'voice:join', channelId: targetChannelId });
+        if (mutedRef.current || deafenedRef.current) {
+          send({ t: 'voice:state', selfMute: mutedRef.current, selfDeaf: deafenedRef.current });
+        }
         setChannelId(targetChannelId);
 
         // Conecta a quem já estava na sala.
@@ -222,6 +257,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         engineRef.current?.dispose();
         engineRef.current = null;
+        engineSessionIdRef.current = null;
 
         toast({
           title: 'Não foi possível entrar no canal de voz',
@@ -233,7 +269,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setConnecting(false);
       }
     },
-    [sessionId, send, store, toast, channelIdRef],
+    [sessionId, send, store, toast, channelIdRef, mutedRef, deafenedRef],
   );
 
   const leave = React.useCallback(() => {
@@ -241,6 +277,38 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     send({ t: 'voice:leave' });
     teardown();
   }, [send, teardown, channelIdRef]);
+
+  /**
+   * Reentra na chamada depois de uma reconexão do WebSocket.
+   *
+   * Sem isto, a queda é SILENCIOSA: o gateway apagou a sessão de voz ligada à
+   * conexão antiga, então para todo mundo a pessoa saiu da sala — mas a tela
+   * dela continua mostrando "voz conectada". Ninguém ouve ninguém e nada indica
+   * que há algo errado.
+   *
+   * O compartilhamento de tela não volta junto: `getDisplayMedia` exige um novo
+   * gesto do usuário, então avisamos em vez de fingir que continua no ar.
+   */
+  React.useEffect(() => {
+    const canalAtual = channelIdRef.current;
+    const sessaoDoMotor = engineSessionIdRef.current;
+
+    if (!canalAtual || !sessionId || !sessaoDoMotor) return;
+    if (sessaoDoMotor === sessionId) return;
+
+    const estavaTransmitindo = sharingScreenRef.current;
+
+    void join(canalAtual).then(() => {
+      if (estavaTransmitindo) {
+        toast({
+          title: 'Compartilhamento interrompido',
+          description:
+            'A conexão caiu e voltou. Sua chamada foi restabelecida, mas é preciso compartilhar a tela de novo.',
+          variant: 'info',
+        });
+      }
+    });
+  }, [sessionId, join, toast, channelIdRef, sharingScreenRef]);
 
   const toggleMute = React.useCallback(() => {
     setMuted((current) => {
@@ -315,6 +383,44 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       });
     }
   }, [connection, teardown, toast, channelIdRef]);
+
+  /**
+   * Sons de entrada e saída da sala.
+   *
+   * Só toca para MOVIMENTO DE OUTRAS PESSOAS enquanto você está na chamada — o
+   * som existe para avisar "alguém chegou" sem você precisar olhar. Tocar na
+   * própria entrada seria redundante (você acabou de clicar), e tocar quando
+   * você nem está na sala seria barulho puro.
+   *
+   * A primeira execução guarda a lista sem tocar nada: senão, entrar numa sala
+   * com quatro pessoas dispararia quatro sons de uma vez.
+   */
+  const participantesConhecidosRef = React.useRef<Set<string> | null>(null);
+
+  React.useEffect(() => {
+    if (!channelId) {
+      participantesConhecidosRef.current = null;
+      return;
+    }
+
+    const atuais = new Set(
+      Object.values(participants)
+        .filter((participante) => participante.channelId === channelId)
+        .map((participante) => participante.user.id),
+    );
+
+    const anteriores = participantesConhecidosRef.current;
+    participantesConhecidosRef.current = atuais;
+
+    if (!anteriores) return;
+
+    for (const id of atuais) {
+      if (!anteriores.has(id) && id !== viewerId) tocarSom('entrar');
+    }
+    for (const id of anteriores) {
+      if (!atuais.has(id) && id !== viewerId) tocarSom('sair');
+    }
+  }, [participants, channelId, viewerId]);
 
   /**
    * Mantém a saída de áudio em sincronia com os participantes.

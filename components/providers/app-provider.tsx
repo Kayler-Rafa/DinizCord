@@ -27,6 +27,13 @@ interface AppContextValue {
   reconnect: () => void;
   /** Assina sinais WebRTC; devolve a função de cancelamento. */
   onSignal: (listener: SignalListener) => () => void;
+  /**
+   * Assina TODOS os eventos do gateway, antes de serem aplicados ao store.
+   *
+   * Existe para reações que não são estado — som, notificação, contador no
+   * título. Quem só precisa de dados deve usar o store, não isto.
+   */
+  onEvent: (listener: (event: ServerEvent) => void) => () => void;
   refreshServers: () => Promise<void>;
 }
 
@@ -52,6 +59,7 @@ export function AppProvider({
 
   const socketRef = React.useRef<GatewaySocket | null>(null);
   const signalListeners = React.useRef(new Set<SignalListener>());
+  const eventListeners = React.useRef(new Set<(event: ServerEvent) => void>());
   const wasConnected = React.useRef(false);
 
   const refreshServers = React.useCallback(async () => {
@@ -64,6 +72,16 @@ export function AppProvider({
   }, [store]);
 
   const handleEvent = React.useCallback((event: ServerEvent) => {
+    // Observadores primeiro: eles reagem ao evento cru, sem depender de como o
+    // store o interpreta.
+    for (const listener of eventListeners.current) {
+      try {
+        listener(event);
+      } catch {
+        // Um observador com defeito não pode impedir o evento de chegar ao store.
+      }
+    }
+
     if (event.t === 'webrtc:signal') {
       for (const listener of signalListeners.current) {
         listener({ from: event.from, fromUserId: event.fromUserId, signal: event.signal });
@@ -170,9 +188,16 @@ export function AppProvider({
     };
   }, []);
 
+  const onEvent = React.useCallback((listener: (event: ServerEvent) => void) => {
+    eventListeners.current.add(listener);
+    return () => {
+      eventListeners.current.delete(listener);
+    };
+  }, []);
+
   const value = React.useMemo<AppContextValue>(
-    () => ({ store, user, send, reconnect, onSignal, refreshServers }),
-    [store, user, send, reconnect, onSignal, refreshServers],
+    () => ({ store, user, send, reconnect, onSignal, onEvent, refreshServers }),
+    [store, user, send, reconnect, onSignal, onEvent, refreshServers],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

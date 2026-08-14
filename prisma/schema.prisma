@@ -198,6 +198,13 @@ model Message {
 
   replyToId String?
 
+  /// Ids dos membros citados com @, resolvidos na gravação.
+  ///
+  /// Guardados na própria mensagem em vez de recalculados na leitura: se
+  /// alguém trocar de nome de usuário depois, a menção continua apontando para
+  /// quem foi realmente citado na época.
+  mentions String[] @default([])
+
   channel   Channel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
   author    User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
   replyTo   Message?          @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)

@@ -15,6 +15,9 @@ import { ProfileSettings } from './profile-settings';
 import { PasswordSettings } from './password-settings';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { useTheme } from '@/hooks/useTheme';
+import { useNotifications } from '@/hooks/useNotifications';
+import { Button } from '@/components/ui/button';
+import { tocarSom } from '@/lib/client/sounds';
 import { useVoice } from '@/components/providers/voice-provider';
 import { useStoreSelector } from '@/hooks/useStore';
 
@@ -38,6 +41,7 @@ export function SettingsDialog({
             <TabTrigger value="perfil">Perfil</TabTrigger>
             <TabTrigger value="aparencia">Aparência</TabTrigger>
             <TabTrigger value="voz">Voz</TabTrigger>
+            <TabTrigger value="avisos">Avisos</TabTrigger>
             <TabTrigger value="seguranca">Segurança</TabTrigger>
           </Tabs.List>
 
@@ -51,6 +55,10 @@ export function SettingsDialog({
 
           <Tabs.Content value="voz" className="focus-visible:outline-none">
             <VoiceSettings />
+          </Tabs.Content>
+
+          <Tabs.Content value="avisos" className="focus-visible:outline-none">
+            <NotificationSettings />
           </Tabs.Content>
 
           <Tabs.Content value="seguranca" className="focus-visible:outline-none">
@@ -110,6 +118,72 @@ function AppearanceSettings() {
             {option.label}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Ajustes e explicação dos avisos.
+ *
+ * A aba existe para dois papéis: pedir a permissão de notificação num momento
+ * em que o usuário entende o porquê (pedir no primeiro segundo do app costuma
+ * levar um "bloquear" reflexo), e deixar claro o que gera aviso e o que não
+ * gera.
+ */
+function NotificationSettings() {
+  const { permissao, pedirPermissao, suportado } = useNotifications();
+
+  return (
+    <div className="space-y-4 text-sm">
+      <div>
+        <h3 className="mb-1 font-medium text-content">Como você é avisado</h3>
+        <ul className="list-inside list-disc space-y-1 text-muted">
+          <li>O número de mensagens não lidas aparece no título da aba, sempre.</li>
+          <li>Um som toca quando chega mensagem e a aba não está em foco.</li>
+          <li>Menções ao seu nome tocam um som diferente e podem virar notificação.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 className="mb-1 font-medium text-content">Notificações do sistema</h3>
+
+        {!suportado ? (
+          <p className="text-muted">Seu navegador não oferece notificações.</p>
+        ) : permissao === 'granted' ? (
+          <p className="text-success">
+            Ativadas. Você será avisado quando alguém mencionar seu nome com @.
+          </p>
+        ) : permissao === 'denied' ? (
+          <p className="rounded-[var(--radius-app)] border border-warning/40 bg-warning/10 p-3 text-warning">
+            Bloqueadas por você neste navegador. Para reativar, use o cadeado na barra de endereços —
+            depois de negada, a permissão não pode mais ser pedida pela página.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-muted">
+              Só notificamos menções diretas. Mensagem comum não gera notificação.
+            </p>
+            <Button size="sm" variant="secondary" onClick={() => void pedirPermissao()}>
+              Ativar notificações
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h3 className="mb-1 font-medium text-content">Testar os sons</h3>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" onClick={() => tocarSom('entrar')}>
+            Entrada na call
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => tocarSom('sair')}>
+            Saída da call
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => tocarSom('mencao')}>
+            Menção
+          </Button>
+        </div>
       </div>
     </div>
   );
