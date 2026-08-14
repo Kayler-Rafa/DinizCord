@@ -1,0 +1,16 @@
+<!--
+  Ícone da aba.
+
+  Tile dourado com o "D" escuro vazado: é o par de cores do tema escuro
+  (`--dc-accent` sobre `--dc-on-accent`) na ordem que sobrevive ao tamanho real
+  de um favicon. O inverso (tile escuro, D dourado) desaparece contra a barra
+  escura do navegador, e a versão com cauda de balão de fala empasta a 16px,
+  onde a cauda encosta na haste do D.
+
+  Sem cantos vivos e sem detalhe fino de propósito: a 16px só restam a cor e a
+  silhueta.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DinizCord">
+  <rect width="64" height="64" rx="14" fill="#d4af37"/>
+  <path fill="#14110a" fill-rule="evenodd" d="M19 16h10a16 16 0 0 1 0 32H19zm8 8v16h2a8 8 0 0 0 0-16z"/>
+</svg>
