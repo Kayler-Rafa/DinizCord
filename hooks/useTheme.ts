@@ -2,16 +2,18 @@
 
 import * as React from 'react';
 
-export type Theme = 'dark' | 'light';
+import { DEFAULT_THEME, THEME_STORAGE_KEY as STORAGE_KEY, type Theme } from '@/lib/theme';
 
-const STORAGE_KEY = 'dinizcord-theme';
+export type { Theme };
 
 /**
  * Tema da interface.
  *
  * Escuro é o padrão e já vem no HTML do servidor, então não existe o flash
- * branco típico de quem só decide o tema no cliente. A preferência fica em
- * `localStorage` porque é uma escolha de dispositivo, não de conta.
+ * branco típico de quem só decide o tema no cliente. Quem escolheu o claro tem o
+ * atributo corrigido antes da pintura pelo script de `lib/theme.ts` — este hook
+ * cuida da leitura reativa e da troca. A preferência fica em `localStorage`
+ * porque é uma escolha de dispositivo, não de conta.
  *
  * A leitura usa `useSyncExternalStore` em vez de `useEffect` + `setState`: o
  * `localStorage` é um armazenamento externo ao React, e essa é a API feita para
@@ -28,10 +30,10 @@ function subscribe(onChange: () => void): () => void {
 function readStoredTheme(): Theme {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored === 'light' ? 'light' : 'dark';
+    return stored === 'light' ? 'light' : DEFAULT_THEME;
   } catch {
     // Modo privativo pode bloquear a leitura.
-    return 'dark';
+    return DEFAULT_THEME;
   }
 }
 
@@ -40,7 +42,7 @@ export function useTheme() {
     subscribe,
     readStoredTheme,
     // No servidor não há storage; o padrão é o mesmo do `data-theme` do layout.
-    () => 'dark' as Theme,
+    () => DEFAULT_THEME,
   );
 
   // Aplica o tema lido do storage ao elemento raiz. É uma escrita no DOM fora

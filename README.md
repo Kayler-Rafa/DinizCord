@@ -21,6 +21,7 @@ por ela — condições completas em [TERMS.md](TERMS.md).
 
 ## Sumário
 
+- [Telas](#telas)
 - [Stack](#stack)
 - [Arquitetura](#arquitetura)
 - [WebSockets e Vercel](#websockets-e-vercel)
@@ -35,6 +36,48 @@ por ela — condições completas em [TERMS.md](TERMS.md).
 - [Segurança](#segurança)
 - [Limitações conhecidas](#limitações-conhecidas)
 - [Termos de uso](TERMS.md)
+
+---
+
+## Telas
+
+<p align="center">
+  <img src="docs/screenshots/01-chat.png" alt="Canal de texto com mensagens, reações, menção e a lista de quem está online" width="100%">
+</p>
+
+Canal de texto com histórico, reações, menções e a barra lateral de presença. À
+esquerda, um canal de voz ocupado mostra quem está com o microfone desligado e
+quem está compartilhando a tela.
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/02-volume.png" alt="Controle de volume individual de um participante, ajustado em 160%" width="100%">
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/04-tema-claro.png" alt="O mesmo canal no tema claro" width="100%">
+    </td>
+  </tr>
+  <tr>
+    <td>Volume por participante, de 0% a 200% — acima de 100% via <code>GainNode</code>, porque <code>HTMLAudioElement.volume</code> satura em 1.</td>
+    <td>Tema claro. A preferência fica no dispositivo e é aplicada antes da primeira pintura, sem flash.</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="60%">
+      <img src="docs/screenshots/05-termos.png" alt="Tela de aceite dos termos, com o botão de aceitar desabilitado até o fim da leitura" width="100%">
+    </td>
+    <td width="40%">
+      <img src="docs/screenshots/03-mobile.png" alt="O canal de texto em tela de celular" width="100%">
+    </td>
+  </tr>
+  <tr>
+    <td>Aceite dos termos no primeiro acesso. O botão só habilita ao fim da leitura, e o bloqueio vale também para a API e para o WebSocket — não dá para contornar a tela.</td>
+    <td>Layout em tela pequena.</td>
+  </tr>
+</table>
 
 ---
 
