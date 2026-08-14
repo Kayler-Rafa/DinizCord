@@ -21,6 +21,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/entrar');
   }
 
+  // Antes de qualquer dado do servidor ser buscado: quem não aceitou os termos
+  // não vê tela nenhuma do aplicativo.
+  if (!session.user.termsAccepted) {
+    redirect('/termos');
+  }
+
   const servers = await listServersForUser(session.user.id);
 
   return (

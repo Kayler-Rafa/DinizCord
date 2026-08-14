@@ -3,6 +3,7 @@ import { testPrisma } from './db';
 import { generateSessionToken, hashSessionToken } from '@/lib/auth/crypto';
 import { issueGatewayTicket } from '@/lib/auth/ticket';
 import { avatarColorFor } from '@/lib/utils';
+import { TERMS_VERSION } from '@/lib/terms';
 
 /**
  * Fixtures de domínio.
@@ -25,7 +26,18 @@ export interface TestUser {
   password: string;
 }
 
-export async function createUser(overrides: Partial<TestUser> = {}): Promise<TestUser> {
+export interface CreateUserOptions extends Partial<TestUser> {
+  /**
+   * Cria a conta SEM aceite dos termos.
+   *
+   * O padrão é já aceito, porque quase todo teste quer exercitar outra coisa e
+   * teria de repetir o aceite antes. Os testes do próprio bloqueio usam esta
+   * opção para partir do estado real de quem acabou de se cadastrar.
+   */
+  semAceitarTermos?: boolean;
+}
+
+export async function createUser(overrides: CreateUserOptions = {}): Promise<TestUser> {
   counter += 1;
   const username = overrides.username ?? `usuario${counter}`;
   const password = overrides.password ?? 'senhaforte123';
@@ -37,6 +49,9 @@ export async function createUser(overrides: Partial<TestUser> = {}): Promise<Tes
       displayName: overrides.displayName ?? `Usuário ${counter}`,
       passwordHash: await hash(password, FAST_ARGON2),
       avatarColor: avatarColorFor(username),
+      ...(overrides.semAceitarTermos
+        ? {}
+        : { termsAcceptedAt: new Date(), termsAcceptedVersion: TERMS_VERSION }),
     },
     select: { id: true, username: true, email: true, displayName: true },
   });

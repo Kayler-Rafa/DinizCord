@@ -14,11 +14,34 @@ import type { ChannelType, MemberRole } from '@/lib/types';
  * a um canal de outro servidor.
  */
 
-export async function requireSession(): Promise<AuthenticatedSession> {
+/**
+ * Exige sessão autenticada E aceite dos termos em vigor.
+ *
+ * O aceite é verificado AQUI, e não só na tela, porque uma tela pode ser
+ * pulada: basta abrir o console e chamar a API direto. Bloquear no guard que
+ * toda rota autenticada já usa faz a regra valer para todas elas — inclusive
+ * as que forem escritas no futuro, sem ninguém precisar lembrar.
+ *
+ * As três exceções (`permitirTermosPendentes`) são as rotas que precisam
+ * funcionar ANTES do aceite: registrar o aceite, sair da conta e consultar a
+ * própria sessão. Sem elas, a pessoa ficaria trancada sem conseguir nem aceitar
+ * nem sair.
+ */
+export async function requireSession(
+  opcoes: { permitirTermosPendentes?: boolean } = {},
+): Promise<AuthenticatedSession> {
   const session = await getSession();
   if (!session) {
     throw ApiError.unauthorized();
   }
+
+  if (!opcoes.permitirTermosPendentes && !session.user.termsAccepted) {
+    throw new ApiError(
+      'FORBIDDEN',
+      'É preciso aceitar os termos de uso para continuar.',
+    );
+  }
+
   return session;
 }
 

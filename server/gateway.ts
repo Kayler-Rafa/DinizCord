@@ -15,6 +15,7 @@ import {
   voiceParticipantsForServers,
 } from './presence';
 import { verifyGatewayTicket } from '../lib/auth/ticket';
+import { aceiteEstaEmDia } from '../lib/terms';
 import { scopedLogger } from '../lib/logger';
 import { Topic, parseTopic } from '../lib/realtime/topics';
 import { PUBLIC_USER_SELECT, toVoiceParticipantDTO } from '../lib/db/mappers';
@@ -126,11 +127,20 @@ export class Gateway {
 
     const user = await db().user.findUnique({
       where: { id: userId },
-      select: { preferredStatus: true, activity: true },
+      select: { preferredStatus: true, activity: true, termsAcceptedVersion: true },
     });
 
     if (!user) {
       socket.close(CLOSE_CODES.UNAUTHORIZED, 'Usuário não encontrado');
+      return;
+    }
+
+    // O aceite dos termos também vale aqui. Sem esta checagem, alguém poderia
+    // pular a tela e abrir o WebSocket direto — passando a receber mensagens,
+    // presença e voz sem nunca ter aceitado nada.
+    if (!aceiteEstaEmDia(user.termsAcceptedVersion)) {
+      log.warn({ userId, event: 'gateway.terms_pending' }, 'Conexão recusada: termos não aceitos');
+      socket.close(CLOSE_CODES.TERMS_PENDING, 'É preciso aceitar os termos de uso');
       return;
     }
 

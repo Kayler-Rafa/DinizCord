@@ -7,5 +7,6 @@ import { getSession } from '@/lib/auth/session';
  */
 export default async function RootPage() {
   const session = await getSession();
-  redirect(session ? '/app' : '/entrar');
+  if (!session) redirect('/entrar');
+  redirect(session.user.termsAccepted ? '/app' : '/termos');
 }

@@ -68,6 +68,14 @@ model User {
   /// Atividade textual livre ("Jogando Assetto Corsa EVO"). Definida manualmente.
   activity String?
 
+  /// Quando a pessoa aceitou os termos de uso, e qual versão.
+  ///
+  /// A versão é guardada junto para que uma revisão dos termos volte a exigir
+  /// aceite de todos — sem isso, quem entrou antes ficaria preso à versão
+  /// antiga sem nunca ver a nova.
+  termsAcceptedAt      DateTime?
+  termsAcceptedVersion String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

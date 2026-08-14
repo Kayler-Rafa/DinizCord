@@ -49,6 +49,8 @@ export interface SessionUser extends PublicUser {
   email: string;
   preferredStatus: SelectableStatus;
   activity: string | null;
+  /** false enquanto a pessoa não aceitar a versão vigente dos termos. */
+  termsAccepted: boolean;
 }
 
 export interface MemberDTO {

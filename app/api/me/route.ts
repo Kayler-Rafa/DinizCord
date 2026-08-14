@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/client';
 import { avatarUrlFor } from '@/lib/db/mappers';
+import { aceiteEstaEmDia } from '@/lib/terms';
 import { apiHandler, json } from '@/lib/api/handler';
 import { parseJsonBody } from '@/lib/api/errors';
 import { assertSameOrigin } from '@/lib/api/request';
@@ -41,6 +42,7 @@ export async function PATCH(request: Request) {
         displayName: true,
         avatarColor: true,
         avatarUpdatedAt: true,
+        termsAcceptedVersion: true,
         preferredStatus: true,
         activity: true,
       },
@@ -82,6 +84,7 @@ export async function PATCH(request: Request) {
       displayName: user.displayName,
       avatarColor: user.avatarColor,
       avatarUrl: avatarUrlFor(user),
+      termsAccepted: aceiteEstaEmDia(user.termsAcceptedVersion),
       preferredStatus: (user.preferredStatus === 'OFFLINE'
         ? 'ONLINE'
         : user.preferredStatus) as SelectableStatus,

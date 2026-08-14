@@ -176,6 +176,8 @@ export const CLOSE_CODES = {
   HEARTBEAT_TIMEOUT: 4008,
   /** A sessão foi encerrada em outro lugar (logout). */
   SESSION_REVOKED: 4009,
+  /** Termos de uso ainda não aceitos. */
+  TERMS_PENDING: 4010,
   /** Abuso detectado. */
   RATE_LIMITED: 4029,
   /** O gateway está desligando; o cliente deve reconectar. */
@@ -189,6 +191,8 @@ export const CLOSE_CODES = {
 export const NON_RETRYABLE_CLOSE_CODES: number[] = [
   CLOSE_CODES.FORBIDDEN_ORIGIN,
   CLOSE_CODES.SESSION_REVOKED,
+  // Reconectar não resolve: é preciso passar pela tela de aceite.
+  CLOSE_CODES.TERMS_PENDING,
 ];
 
 export function encodeEvent(event: ServerEvent): string {

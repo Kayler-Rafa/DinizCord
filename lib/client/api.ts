@@ -209,6 +209,10 @@ export const api = {
       post<{ serverId: string; joined: boolean }>(`/api/invites/code/${code}`),
   },
 
+  terms: {
+    accept: () => post<{ acceptedAt: string; version: string }>('/api/terms/accept'),
+  },
+
   gateway: {
     ticket: () => post<{ ticket: string; expiresIn: number }>('/api/gateway/ticket'),
   },

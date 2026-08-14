@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/client';
 import { avatarUrlFor } from '@/lib/db/mappers';
+import { aceiteEstaEmDia } from '@/lib/terms';
 import { apiHandler, json } from '@/lib/api/handler';
 import { ApiError, parseJsonBody } from '@/lib/api/errors';
 import { assertSameOrigin, clientIpOf, rateLimitIdentity } from '@/lib/api/request';
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
         displayName: true,
         avatarColor: true,
         avatarUpdatedAt: true,
+        termsAcceptedVersion: true,
         activity: true,
       },
     });
@@ -94,6 +96,7 @@ export async function POST(request: Request) {
       displayName: user.displayName,
       avatarColor: user.avatarColor,
       avatarUrl: avatarUrlFor(user),
+      termsAccepted: aceiteEstaEmDia(user.termsAcceptedVersion),
       preferredStatus: 'ONLINE',
       activity: user.activity,
     };
