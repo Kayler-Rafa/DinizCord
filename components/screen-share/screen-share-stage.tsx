@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { Expand, Maximize2, Minimize2, MonitorUp, Shrink, X } from 'lucide-react';
+import { Expand, Maximize2, Minimize2, MonitorUp, Shrink, Volume2, VolumeX, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useVoice } from '@/components/providers/voice-provider';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { useStoreSelector } from '@/hooks/useStore';
@@ -19,7 +20,8 @@ import { VideoSurface } from './video-surface';
  * jogo enquanto o resto comenta no chat.
  */
 export function ScreenShareStage() {
-  const { channelId, sharingScreen, stopScreenShare } = useVoice();
+  const { channelId, sharingScreen, stopScreenShare, getScreenVolume, setScreenVolume } =
+    useVoice();
   const { screenStreams } = useWebRTC();
   const { user } = useApp();
   const participants = useStoreSelector((state) => state.voice);
@@ -47,6 +49,21 @@ export function ScreenShareStage() {
     if (peerId === 'local') return `${user.displayName} (você)`;
     return participants[peerId]?.user.displayName ?? 'Participante';
   };
+
+  // Dono da transmissão pelo id de USUÁRIO: o volume é preferência sobre a
+  // pessoa, e o id de sessão muda a cada reconexão dela.
+  const donoId = participants[selected.peerId]?.user.id ?? null;
+
+  /*
+   * Nem toda transmissão traz som: no Windows, compartilhar a tela inteira não
+   * oferece áudio, e mesmo compartilhando uma aba é preciso marcar a opção.
+   *
+   * Ler as faixas a cada render é de propósito. A faixa de áudio costuma chegar
+   * depois da de vídeo, e o motor reemite as mídias a cada track recebida — o
+   * componente re-renderiza junto e o controle aparece assim que houver som.
+   */
+  const temAudio = selected.stream.getAudioTracks().length > 0;
+  const volumeDaTela = donoId ? getScreenVolume(donoId) : 1;
 
   return (
     <section
@@ -85,6 +102,84 @@ export function ScreenShareStage() {
                 </button>
               ))}
             </div>
+          ) : null}
+
+          {/*
+            Volume da transmissão.
+
+            Só aparece para transmissão alheia e que realmente traga áudio:
+            compartilhar a tela sem marcar "compartilhar áudio" é o caso comum,
+            e um controle que não move nada só confunde. A própria transmissão
+            não tem volume porque não é reproduzida — o som já sai das caixas
+            deste computador.
+          */}
+          {!selected.local ? (
+            temAudio && donoId ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex shrink-0 items-center gap-1 rounded p-1 text-subtle transition-colors hover:text-content"
+                    aria-label={`Ajustar volume da transmissão de ${nameOf(selected.peerId)}`}
+                  >
+                    <Volume2 className="size-3.5" />
+                    {volumeDaTela !== 1 ? (
+                      <span className="text-[10px] tabular-nums">
+                        {Math.round(volumeDaTela * 100)}%
+                      </span>
+                    ) : null}
+                  </button>
+                </PopoverTrigger>
+
+                <PopoverContent align="end" side="bottom" className="w-56">
+                  <p className="mb-2 truncate text-xs font-medium text-content">
+                    Áudio da transmissão
+                  </p>
+
+                  <label className="flex items-center gap-2">
+                    <Volume2 className="size-3.5 shrink-0 text-subtle" aria-hidden />
+                    <input
+                      type="range"
+                      min={0}
+                      max={200}
+                      step={5}
+                      value={Math.round(volumeDaTela * 100)}
+                      onChange={(event) =>
+                        setScreenVolume(donoId, Number(event.target.value) / 100)
+                      }
+                      className="h-1 flex-1 cursor-pointer accent-[var(--dc-accent)]"
+                      aria-label={`Volume da transmissão de ${nameOf(selected.peerId)}, em porcentagem`}
+                    />
+                    <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted">
+                      {Math.round(volumeDaTela * 100)}%
+                    </span>
+                  </label>
+
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-[11px] text-subtle">0% a 200%</span>
+                    <button
+                      type="button"
+                      onClick={() => setScreenVolume(donoId, 1)}
+                      className="rounded px-2 py-0.5 text-[11px] text-muted transition-colors hover:bg-elevated hover:text-content"
+                    >
+                      Restaurar
+                    </button>
+                  </div>
+
+                  <p className="mt-2 text-[11px] leading-snug text-subtle">
+                    Independente do volume da voz de {nameOf(selected.peerId)}.
+                  </p>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              // Sem esta pista, quem assiste fica procurando um controle de
+              // volume que não existe — quando o problema está do outro lado.
+              <Tooltip content="Esta transmissão veio sem áudio. Quem compartilha precisa marcar a opção de compartilhar o som.">
+                <span className="shrink-0 p-1 text-subtle" aria-label="Transmissão sem áudio">
+                  <VolumeX className="size-3.5" />
+                </span>
+              </Tooltip>
+            )
           ) : null}
 
           {/* Ampliar continua útil: dá mais espaço sem esconder o chat. */}
@@ -136,9 +231,6 @@ export function ScreenShareStage() {
         <div className="min-h-0 flex-1">
           <VideoSurface
             stream={selected.stream}
-            // A própria transmissão vai muda: o som já sai pelas caixas do
-            // próprio computador, e reproduzi-lo de novo causaria eco.
-            muted={selected.local}
             label={`Transmissão de ${nameOf(selected.peerId)}`}
           />
         </div>

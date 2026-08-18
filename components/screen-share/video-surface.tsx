@@ -8,16 +8,13 @@ import { Loader2 } from 'lucide-react';
  *
  * `srcObject` é atribuído por efeito porque não existe como passá-lo por atributo
  * JSX — o React só escreve atributos de string, e a stream é um objeto vivo.
+ *
+ * O elemento é SEMPRE mudo. O áudio da transmissão sai pelo `AudioOutput`, que
+ * o faz atravessar um `GainNode` para permitir volume acima de 100% e para que
+ * o botão de ensurdecer também o alcance. Deixar o `<video>` com som tocaria a
+ * mesma fonte duas vezes.
  */
-export function VideoSurface({
-  stream,
-  muted,
-  label,
-}: {
-  stream: MediaStream;
-  muted: boolean;
-  label: string;
-}) {
+export function VideoSurface({ stream, label }: { stream: MediaStream; label: string }) {
   const ref = React.useRef<HTMLVideoElement>(null);
   const [ready, setReady] = React.useState(false);
 
@@ -28,8 +25,7 @@ export function VideoSurface({
     setReady(false);
     element.srcObject = stream;
 
-    // Autoplay com som pode ser barrado; o vídeo em si toca por ser `muted`
-    // ou por ter havido gesto do usuário ao entrar na chamada.
+    // Sendo mudo, o autoplay nunca esbarra na política do navegador.
     void element.play().catch(() => undefined);
 
     return () => {
@@ -50,7 +46,7 @@ export function VideoSurface({
         ref={ref}
         autoPlay
         playsInline
-        muted={muted}
+        muted
         onLoadedMetadata={() => setReady(true)}
         aria-label={label}
         className="h-full w-full object-contain"

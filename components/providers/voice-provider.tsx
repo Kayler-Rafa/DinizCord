@@ -12,7 +12,15 @@ import {
   VoiceEngine,
   type RemotePeerMedia,
 } from '@/lib/webrtc/voice-engine';
-import { AudioOutput, MAX_GAIN } from '@/lib/webrtc/audio-output';
+import { AudioOutput } from '@/lib/webrtc/audio-output';
+import {
+  CHAVE_VOLUME_TELA,
+  CHAVE_VOLUME_VOZ,
+  VOLUME_PADRAO,
+  gravarVolumes,
+  lerVolumes,
+  limitarVolume,
+} from '@/lib/client/volumes';
 import { destravarSons, tocarSom } from '@/lib/client/sounds';
 import { clientEnv } from '@/lib/env.client';
 import type { VoiceParticipantDTO } from '@/lib/types';
@@ -47,45 +55,25 @@ interface VoiceContextValue {
   startScreenShare: () => Promise<void>;
   stopScreenShare: () => void;
 
-  /** Volume de uma pessoa: 0 = mudo, 1 = normal, 2 = dobro. */
+  /** Volume da voz de uma pessoa: 0 = mudo, 1 = normal, 2 = dobro. */
   getPeerVolume: (userId: string) => number;
   setPeerVolume: (userId: string, volume: number) => void;
+
+  /** Volume do áudio da tela que a pessoa transmite, no mesmo intervalo. */
+  getScreenVolume: (userId: string) => number;
+  setScreenVolume: (userId: string, volume: number) => void;
 }
 
 const VoiceContext = React.createContext<VoiceContextValue | null>(null);
 
-const CHAVE_VOLUMES = 'dinizcord-volumes';
-
-function lerVolumes(): Record<string, number> {
-  if (typeof window === 'undefined') return {};
-  try {
-    const bruto = window.localStorage.getItem(CHAVE_VOLUMES);
-    if (!bruto) return {};
-
-    const dados: unknown = JSON.parse(bruto);
-    if (typeof dados !== 'object' || dados === null) return {};
-
-    // Sanear na leitura: o localStorage é editável pelo usuário, e um valor
-    // absurdo aqui viraria um estouro no ganho do WebAudio.
-    const limpo: Record<string, number> = {};
-    for (const [id, valor] of Object.entries(dados as Record<string, unknown>)) {
-      if (typeof valor === 'number' && Number.isFinite(valor)) {
-        limpo[id] = Math.min(MAX_GAIN, Math.max(0, valor));
-      }
-    }
-    return limpo;
-  } catch {
-    return {};
-  }
-}
-
-function gravarVolumes(volumes: Record<string, number>): void {
-  try {
-    window.localStorage.setItem(CHAVE_VOLUMES, JSON.stringify(volumes));
-  } catch {
-    // Modo privativo: vale para a sessão atual.
-  }
-}
+/**
+ * Prefixo das entradas de tela na saída de áudio.
+ *
+ * Voz e tela da mesma pessoa chegam pela mesma conexão e seriam a mesma chave;
+ * o prefixo separa as duas no `AudioOutput` sem precisar de um segundo
+ * `AudioContext`, que os navegadores limitam por aba.
+ */
+const PREFIXO_TELA = 'screen:';
 
 export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const { send, onSignal, store, user } = useApp();
@@ -103,13 +91,17 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const [remotePeers, setRemotePeers] = React.useState<RemotePeerMedia[]>([]);
 
   /**
-   * Volume por PESSOA, não por conexão.
+   * Volume por PESSOA, não por conexão. Ver `lib/client/volumes`.
    *
-   * A chave é o id do usuário porque o id da sessão muda a cada reconexão —
-   * ajustar o volume de alguém e perdê-lo quando a pessoa cai da chamada seria
-   * inútil. Fica no localStorage por ser preferência de dispositivo.
+   * Voz e tela são coleções separadas de propósito: quem abaixa o jogo do amigo
+   * raramente quer abaixar também a voz dele.
    */
-  const [volumes, setVolumes] = React.useState<Record<string, number>>(() => lerVolumes());
+  const [volumes, setVolumes] = React.useState<Record<string, number>>(() =>
+    lerVolumes(CHAVE_VOLUME_VOZ),
+  );
+  const [volumesTela, setVolumesTela] = React.useState<Record<string, number>>(() =>
+    lerVolumes(CHAVE_VOLUME_TELA),
+  );
   const audioOutputRef = React.useRef<AudioOutput | null>(null);
   const [localScreenStream, setLocalScreenStream] = React.useState<MediaStream | null>(null);
   const [turnMissing, setTurnMissing] = React.useState(false);
@@ -433,32 +425,68 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     const vivos = new Set<string>();
 
     for (const peer of remotePeers) {
-      if (!peer.audio) continue;
-      vivos.add(peer.peerId);
-
       const userId = participants[peer.peerId]?.user.id;
-      const escolhido = userId ? (volumes[userId] ?? 1) : 1;
-      saida.attach(peer.peerId, peer.audio, deafened ? 0 : escolhido);
+
+      if (peer.audio) {
+        vivos.add(peer.peerId);
+        const escolhido = userId ? (volumes[userId] ?? VOLUME_PADRAO) : VOLUME_PADRAO;
+        saida.attach(peer.peerId, peer.audio, deafened ? 0 : escolhido);
+      }
+
+      /*
+       * Áudio da tela compartilhada.
+       *
+       * Só entra quando a stream já tem faixa de áudio: um
+       * `MediaStreamAudioSourceNode` escolhe a faixa no momento em que é criado
+       * e não passa a enxergar as que chegarem depois. Como o vídeo costuma
+       * chegar antes do áudio, ligar cedo demais deixaria a transmissão muda
+       * para sempre. O motor reemite a cada track recebida, então este efeito
+       * roda de novo quando o áudio aparecer.
+       */
+      if (peer.screen && peer.screen.getAudioTracks().length > 0) {
+        const chave = `${PREFIXO_TELA}${peer.peerId}`;
+        vivos.add(chave);
+        const escolhido = userId ? (volumesTela[userId] ?? VOLUME_PADRAO) : VOLUME_PADRAO;
+        saida.attach(chave, peer.screen, deafened ? 0 : escolhido);
+      }
     }
 
-    // Desliga quem saiu da chamada.
+    // Desliga quem saiu da chamada ou parou de transmitir.
     for (const id of saida.attachedIds()) {
       if (!vivos.has(id)) saida.detach(id);
     }
-  }, [remotePeers, volumes, deafened, participants]);
+  }, [remotePeers, volumes, volumesTela, deafened, participants]);
 
   const setPeerVolume = React.useCallback((userId: string, valor: number) => {
-    const limitado = Math.min(MAX_GAIN, Math.max(0, valor));
+    const limitado = limitarVolume(valor);
+    if (limitado === null) return;
+
     setVolumes((atual) => {
       const proximo = { ...atual, [userId]: limitado };
-      gravarVolumes(proximo);
+      gravarVolumes(CHAVE_VOLUME_VOZ, proximo);
       return proximo;
     });
   }, []);
 
   const getPeerVolume = React.useCallback(
-    (userId: string) => volumes[userId] ?? 1,
+    (userId: string) => volumes[userId] ?? VOLUME_PADRAO,
     [volumes],
+  );
+
+  const setScreenVolume = React.useCallback((userId: string, valor: number) => {
+    const limitado = limitarVolume(valor);
+    if (limitado === null) return;
+
+    setVolumesTela((atual) => {
+      const proximo = { ...atual, [userId]: limitado };
+      gravarVolumes(CHAVE_VOLUME_TELA, proximo);
+      return proximo;
+    });
+  }, []);
+
+  const getScreenVolume = React.useCallback(
+    (userId: string) => volumesTela[userId] ?? VOLUME_PADRAO,
+    [volumesTela],
   );
 
   React.useEffect(() => {
@@ -489,6 +517,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       stopScreenShare,
       getPeerVolume,
       setPeerVolume,
+      getScreenVolume,
+      setScreenVolume,
     }),
     [
       channelId,
@@ -508,6 +538,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       stopScreenShare,
       getPeerVolume,
       setPeerVolume,
+      getScreenVolume,
+      setScreenVolume,
     ],
   );
 
